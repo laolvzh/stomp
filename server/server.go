@@ -21,7 +21,7 @@ const QueuePrefix = "/queue"
 // Default server parameters.
 const (
 	// Default address for listening for connections.
-	DefaultAddr = ":61613"
+	DefaultAddr = ":61614"
 
 	// Default read timeout for heart-beat.
 	// Override by setting Server.HeartBeat.

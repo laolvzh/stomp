@@ -1,8 +1,6 @@
 package client
 
-import (
-	"github.com/go-stomp/stomp/frame"
-)
+import "github.com/go-stomp/stomp/frame"
 
 type Subscription struct {
 	conn    *Conn

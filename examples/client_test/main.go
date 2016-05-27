@@ -3,16 +3,20 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
+	//"github.com/gmallard/stompngo"
+	//"github.com/gmallard/stompngo_examples/sngecomm"
 	"github.com/go-stomp/stomp"
+	"os"
+	"strconv"
+	"time"
 )
 
-const defaultPort = ":61613"
+const defaultPort = ":61614"
 
-var serverAddr = flag.String("server", "localhost:61613", "STOMP server endpoint")
+var serverAddr = flag.String("server", "localhost:61614", "STOMP server endpoint")
 var messageCount = flag.Int("count", 10, "Number of messages to send/receive")
-var queueName = flag.String("queue", "/queue/client_test", "Destination queue")
+var destination = flag.String("topic", "TOPIC", "Destination topic")
+var queueName = flag.String("queue", "/queue/QueueAnswer", "Destination queue")
 var helpFlag = flag.Bool("help", false, "Print help text")
 var stop = make(chan bool)
 
@@ -53,14 +57,30 @@ func sendMessages() {
 		return
 	}
 
-	for i := 1; i <= *messageCount; i++ {
-		text := fmt.Sprintf("Message #%d", i)
-		err = conn.Send(*queueName, "text/plain",
-			[]byte(text), nil)
+	//for i := 1; i <= *messageCount; i++ {
+
+	/*s := stompngo.Headers{"destination", sngecomm.Dest(),
+		"persistent", "true"} // send headers
+	/*m := exampid + " message: "
+	for i := 1; i <= sngecomm.Nmsgs(); i++ {
+		t := m + fmt.Sprintf("%d", i)
+		fmt.Println(sngecomm.ExampIdNow(exampid), "sending now:", t)
+		//e := conn.Send(s, t)
+	*/
+
+	i := 2
+	for {
+
+		time.Sleep(1000 * time.Millisecond)
+
+		//text := fmt.Sprintf()
+		err = conn.Send(*destination, "text/plain",
+			[]byte(*queueName+" "+strconv.Itoa(i)), nil...)
 		if err != nil {
 			println("failed to send to server", err)
 			return
 		}
+		i++
 	}
 	println("sender finished")
 }
@@ -84,14 +104,17 @@ func recvMessages(subscribed chan bool) {
 	}
 	close(subscribed)
 
-	for i := 1; i <= *messageCount; i++ {
+	//for i := 1; i <= *messageCount; i++ {
+	for {
+		fmt.Println("here?\n")
 		msg := <-sub.C
-		expectedText := fmt.Sprintf("Message #%d", i)
+		fmt.Println("GGG?\n")
+		//expectedText := fmt.Sprintf("Message #%d", i)
 		actualText := string(msg.Body)
-		if expectedText != actualText {
-			println("Expected:", expectedText)
-			println("Actual:", actualText)
-		}
+		//if expectedText != actualText {
+		//	println("Expected:", expectedText)
+		println("Actual:", actualText)
+		//}
 	}
 	println("receiver finished")
 
