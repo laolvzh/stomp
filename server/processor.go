@@ -53,7 +53,6 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 				// todo error handling
 				queue.Subscribe(r.Sub)
 			} else {
-				//fmt.Println("here")
 				topic := proc.tm.Find(r.Sub.Destination())
 				topic.Subscribe(r.Sub)
 			}
@@ -69,10 +68,6 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 			}
 
 		case client.EnqueueOp:
-			fmt.Println("New message: ", string(r.Frame.Body), " to ", string(frame.Destination))
-			/*fmt.Println("body: ", string(r.Frame.Body))
-			fmt.Println("r.Frame.Header: ", r.Frame.Header)
-			fmt.Println("frame.Destination: ", string(frame.Destination))*/
 
 			destination, ok := r.Frame.Header.Contains(frame.Destination)
 			if !ok {
@@ -85,39 +80,26 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 				queue.Enqueue(r.Frame)
 
 			} else {
-				//fmt.Println("here")
-				//topic := proc.tm.Find(destination)
-				//topic.Enqueue(r.Frame)
-				data := strings.SplitN(string(r.Frame.Body), " ", 2)
-				fmt.Println(data[0])
-				fmt.Println(data[1])
 
-				//destination = data[0]
+				if r.Frame.Body == nil {
+					fmt.Println("Got empty message; ignored")
+					continue
+				}
+
+				data := strings.SplitN(string(r.Frame.Body), " ", 2)
+
+				if len(data) < 2 {
+					fmt.Println("error: wrong message; igrored")
+					continue
+				}
+
+				destination = data[0]
 				r.Frame.Header.Set(frame.Destination, data[0])
 				//r.Frame.Header.Set(frame.ContentLength, strconv.Itoa(len(data[1])+1))
 				r.Frame.Body = []byte(data[1])
 				r.Frame.Header.Set(frame.ContentLength, strconv.Itoa(len(string(r.Frame.Body))))
-				//r.Frame[]
 
-				fmt.Printf("new body: -%s- ", string(r.Frame.Body))
-				//fmt.Printf("new body len: -%s- ", string(r.Frame.Body))
-				fmt.Println("len: ", strconv.Itoa(len(string(r.Frame.Body))))
-				fmt.Println("new Header: ", r.Frame.Header, "\n\n")
-				//	queue := proc.qm.Find(data[0])
-				//	queue.Enqueue(r.Frame)
-
-				//fmt.Println("r.Frame.Header: ", r.Frame.Header, "\n\n")
-				/*r.Frame
-
-
-
-				queue := proc.qm.Find(data[0])
-				queue.Enqueue(r.Frame)
-				*/
-
-				//fmt.Println("logint: ", r.Frame.Header.Get("login"))
-
-				queue := proc.qm.Find(data[0])
+				queue := proc.qm.Find(destination)
 				queue.Enqueue(r.Frame)
 			}
 

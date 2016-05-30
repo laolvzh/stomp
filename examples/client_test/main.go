@@ -2,23 +2,32 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	//"github.com/gmallard/stompngo"
-	//"github.com/gmallard/stompngo_examples/sngecomm"
+
+	l4g "github.com/alecthomas/log4go"
 	"github.com/go-stomp/stomp"
+	"github.com/go-stomp/stomp/server/utils"
 	"os"
-	"strconv"
 	"time"
 )
 
-const defaultPort = ":61614"
+var log l4g.Logger = l4g.NewLogger()
 
-var serverAddr = flag.String("server", "localhost:61614", "STOMP server endpoint")
-var messageCount = flag.Int("count", 10, "Number of messages to send/receive")
-var destination = flag.String("topic", "TOPIC", "Destination topic")
-var queueName = flag.String("queue", "/queue/QueueAnswer", "Destination queue")
-var helpFlag = flag.Bool("help", false, "Print help text")
-var stop = make(chan bool)
+const (
+	defaultPort = ":61614"
+	clientID    = "clientID"
+)
+
+var (
+	testFile = "test.csv"
+	LOGFILE  = "client.log"
+)
+
+var (
+	serverAddr  = flag.String("server", "localhost:61614", "STOMP server endpoint")
+	destination = flag.String("topic", "mainTopic", "Destination topic")
+	queueFormat = flag.String("queue", "/queue/", "Queue format")
+	stop        = make(chan bool)
+)
 
 // these are the default options that work with RabbitMQ
 var options []func(*stomp.Conn) error = []func(*stomp.Conn) error{
@@ -26,17 +35,23 @@ var options []func(*stomp.Conn) error = []func(*stomp.Conn) error{
 	stomp.ConnOpt.Host("/"),
 }
 
+func init() {
+	log.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
+	log.AddFilter("file", l4g.DEBUG, l4g.NewFileLogWriter(LOGFILE, false))
+	//
+}
+
 func main() {
+
+	// logger configuration
+	defer log.Close()
+
+	flag.Parsed()
 	flag.Parse()
-	if *helpFlag {
-		fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
 
 	subscribed := make(chan bool)
-	go recvMessages(subscribed)
 
+	go recvMessages(subscribed)
 	// wait until we know the receiver has subscribed
 	<-subscribed
 
@@ -53,69 +68,65 @@ func sendMessages() {
 
 	conn, err := stomp.Dial("tcp", *serverAddr, options...)
 	if err != nil {
-		println("cannot connect to server", err.Error())
+		log.Error("cannot connect to server", err.Error())
 		return
 	}
 
-	//for i := 1; i <= *messageCount; i++ {
+	fs, err := utils.NewFileScanner(testFile)
+	if err != nil {
+		log.Error(err)
+		os.Exit(1)
+	}
+	defer fs.Close()
 
-	/*s := stompngo.Headers{"destination", sngecomm.Dest(),
-		"persistent", "true"} // send headers
-	/*m := exampid + " message: "
-	for i := 1; i <= sngecomm.Nmsgs(); i++ {
-		t := m + fmt.Sprintf("%d", i)
-		fmt.Println(sngecomm.ExampIdNow(exampid), "sending now:", t)
-		//e := conn.Send(s, t)
-	*/
+	//пустой слайс или массив из одного нила
+	fs.Scanner = fs.GetScanner()
 
-	i := 2
-	for {
+	for fs.Scanner.Scan() {
+		locs := fs.Scanner.Text()
+		//log.Info("locs: %s", locs)
+		time.Sleep(1000 * time.Millisecond)
+		reqInJSON, err := utils.MakeReq(locs, clientID, log)
+		if err != nil {
+			log.Error("Could not get coordinates in JSON: wrong format")
+			continue
+		}
+		//log.Info("reqInJSON: %s", *reqInJSON)
 
 		time.Sleep(1000 * time.Millisecond)
 
-		//text := fmt.Sprintf()
-		err = conn.Send(*destination, "text/plain",
-			[]byte(*queueName+" "+strconv.Itoa(i)), nil...)
+		err = conn.Send(*destination, "text/json", []byte(*queueFormat+clientID+" "+*reqInJSON), nil...)
 		if err != nil {
 			println("failed to send to server", err)
 			return
 		}
-		i++
 	}
-	println("sender finished")
 }
 
 func recvMessages(subscribed chan bool) {
 	defer func() {
 		stop <- true
 	}()
-
 	conn, err := stomp.Dial("tcp", *serverAddr, options...)
-
 	if err != nil {
 		println("cannot connect to server", err.Error())
 		return
 	}
 
-	sub, err := conn.Subscribe(*queueName, stomp.AckAuto)
+	sub, err := conn.Subscribe(*queueFormat+clientID, stomp.AckAuto)
 	if err != nil {
-		println("cannot subscribe to", *queueName, err.Error())
+		println("cannot subscribe to", *queueFormat+clientID, err.Error())
 		return
 	}
 	close(subscribed)
 
-	//for i := 1; i <= *messageCount; i++ {
 	for {
-		fmt.Println("here?\n")
 		msg := <-sub.C
-		fmt.Println("GGG?\n")
-		//expectedText := fmt.Sprintf("Message #%d", i)
+		if msg.Body == nil {
+			log.Warn("Got empty message; ignore")
+			continue
+		}
 		actualText := string(msg.Body)
-		//if expectedText != actualText {
-		//	println("Expected:", expectedText)
 		println("Actual:", actualText)
-		//}
 	}
-	println("receiver finished")
-
 }
