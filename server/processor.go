@@ -12,7 +12,11 @@ import (
 	"github.com/go-stomp/stomp/server/client"
 	"github.com/go-stomp/stomp/server/queue"
 	"github.com/go-stomp/stomp/server/topic"
+
+	"github.com/go-stomp/stomp/server/utils"
 )
+
+var configDBfile = "../config.json"
 
 type requestProcessor struct {
 	server *Server
@@ -95,9 +99,10 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 
 				destination = data[0]
 				r.Frame.Header.Set(frame.Destination, data[0])
-				//r.Frame.Header.Set(frame.ContentLength, strconv.Itoa(len(data[1])+1))
 				r.Frame.Body = []byte(data[1])
 				r.Frame.Header.Set(frame.ContentLength, strconv.Itoa(len(string(r.Frame.Body))))
+
+				utils.ConfigurateDB(configDBfile)
 
 				queue := proc.qm.Find(destination)
 				queue.Enqueue(r.Frame)

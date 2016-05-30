@@ -97,7 +97,7 @@ func sendMessages() {
 
 		err = conn.Send(*destination, "text/json", []byte(*queueFormat+clientID+" "+*reqInJSON), nil...)
 		if err != nil {
-			println("failed to send to server", err)
+			log.Error("failed to send to server", err)
 			return
 		}
 	}
@@ -122,11 +122,11 @@ func recvMessages(subscribed chan bool) {
 
 	for {
 		msg := <-sub.C
-		if msg.Body == nil {
+		if msg == nil {
 			log.Warn("Got empty message; ignore")
-			continue
+			return
 		}
 		actualText := string(msg.Body)
-		println("Actual:", actualText)
+		log.Info("Got message:", actualText)
 	}
 }

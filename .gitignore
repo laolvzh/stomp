@@ -28,3 +28,6 @@ doc.txt
 
 #logs
 examples/client_test/client.log*
+examples/client_test
+server/config.json
+
