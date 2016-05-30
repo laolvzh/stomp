@@ -86,6 +86,10 @@ func recvMessages(subscribed chan bool) {
 
 	for i := 1; i <= *messageCount; i++ {
 		msg := <-sub.C
+		if msg == nil {
+			fmt.Println("Error: nil message")
+			return
+		}
 		expectedText := fmt.Sprintf("Message #%d", i)
 		actualText := string(msg.Body)
 		if expectedText != actualText {
