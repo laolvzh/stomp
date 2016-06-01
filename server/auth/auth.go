@@ -11,7 +11,7 @@ import (
 
 type AuthDB struct {
 	configAuthDB string
-	db           []AuthParams // Map with login in key and password in value for authentification field
+	db           map[string]string // Map with login in key and password in value for authentification field
 }
 
 type AuthParams struct {
@@ -32,15 +32,12 @@ func (a AuthDB) Authenticate(login, passcode string) bool {
 		log.Println("Error: no database to authorization checking")
 		os.Exit(1)
 	}
-	for _, param := range a.db {
-		//log.Println("param: ", param)
-		if param.Login == login {
-			if param.Passcode == passcode {
-				return true
-			}
+
+	if l, ok := a.db[login]; ok {
+		if a.db[l] == passcode {
+			return true
 		}
 	}
-
 	return false
 }
 
@@ -71,5 +68,15 @@ func (a *AuthDB) initAuthDB() {
 		log.Println("Couldn't get auth params from configureAuthFile: ", err)
 	}
 
-	a.db = authData
+	dataMap := make(map[string]string)
+	for _, userAuth := range authData {
+		if len(dataMap) != 0 {
+			if _, userExist := dataMap[userAuth.Login]; userExist {
+				log.Println("Warning: user already exists in database; ignored")
+				continue
+			}
+		}
+		dataMap[userAuth.Login] = userAuth.Passcode
+	}
+	a.db = dataMap
 }

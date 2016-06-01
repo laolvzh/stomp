@@ -43,7 +43,8 @@ func main() {
 
 var listenAddr = flag.String("addr", ":61613", "Listen address")
 var helpFlag = flag.Bool("help", false, "Show this help text")
-var configAuthFile = flag.String("auth", "../server/auth/auth.json", "configfile with logins and passwords")
+var configAuthFile = flag.String("auth", "auth.json", "configfile with logins and passwords")
+var logFile = flag.String("logfile", "stomp.-server.log", "logfile")
 
 func main() {
 	flag.Parse()
