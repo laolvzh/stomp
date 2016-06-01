@@ -14,11 +14,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/go-stomp/stomp/server"
+	"github.com/go-stomp/stomp/server/auth"
 	"log"
 	"net"
 	"os"
-
-	"github.com/go-stomp/stomp/server"
 )
 
 // TODO: experimenting with ways to gracefully shutdown the server,
@@ -43,6 +43,7 @@ func main() {
 
 var listenAddr = flag.String("addr", ":61613", "Listen address")
 var helpFlag = flag.Bool("help", false, "Show this help text")
+var configAuthFile = flag.String("logins", "../server/auth/authDB.json", "configfile with logins and passwords")
 
 func main() {
 	flag.Parse()
@@ -58,6 +59,8 @@ func main() {
 	}
 	defer func() { l.Close() }()
 
+	a := auth.NewAuth(*configAuthFile)
+
 	log.Println("listening on", l.Addr().Network(), l.Addr().String())
-	server.Serve(l)
+	server.Serve(l, a)
 }
