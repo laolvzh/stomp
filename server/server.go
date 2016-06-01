@@ -45,15 +45,15 @@ type Server struct {
 }
 
 // ListenAndServe listens on the TCP network address addr and then calls Serve.
-func ListenAndServe(addr string) error {
-	s := &Server{Addr: addr, Authenticator: auth.AuthDB{}}
+func ListenAndServe(addr string, a auth.AuthDB) error {
+	s := &Server{Addr: addr, Authenticator: a}
 	return s.ListenAndServe()
 }
 
 // Serve accepts incoming TCP connections on the listener l, creating a new
 // STOMP service thread for each connection.
-func Serve(l net.Listener) error {
-	s := &Server{Authenticator: auth.AuthDB{}}
+func Serve(l net.Listener, a auth.AuthDB) error {
+	s := &Server{Authenticator: a}
 	return s.Serve(l)
 }
 
