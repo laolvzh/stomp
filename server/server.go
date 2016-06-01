@@ -4,6 +4,7 @@ Package server contains a simple STOMP server implementation.
 package server
 
 import (
+	"github.com/go-stomp/stomp/server/auth"
 	"net"
 	"time"
 )
@@ -45,14 +46,14 @@ type Server struct {
 
 // ListenAndServe listens on the TCP network address addr and then calls Serve.
 func ListenAndServe(addr string) error {
-	s := &Server{Addr: addr}
+	s := &Server{Addr: addr, Authenticator: auth.AuthDB{}}
 	return s.ListenAndServe()
 }
 
 // Serve accepts incoming TCP connections on the listener l, creating a new
 // STOMP service thread for each connection.
 func Serve(l net.Listener) error {
-	s := &Server{}
+	s := &Server{Authenticator: auth.AuthDB{}}
 	return s.Serve(l)
 }
 
