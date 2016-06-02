@@ -63,5 +63,5 @@ func main() {
 	a := auth.NewAuth(*configAuthFile)
 
 	log.Println("listening on", l.Addr().Network(), l.Addr().String())
-	server.Serve(l, a)
+	server.Serve(l, &a)
 }

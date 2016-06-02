@@ -26,15 +26,10 @@ func NewAuth(fileWithLogins string) AuthDB {
 	return a
 }
 
-func (a AuthDB) Authenticate(login, passcode string) bool {
-
-	if len(a.db) == 0 {
-		log.Println("Error: no database to authorization checking")
-		os.Exit(1)
-	}
-
-	if l, ok := a.db[login]; ok {
-		if a.db[l] == passcode {
+func (a *AuthDB) Authenticate(login, passcode string) bool {
+	//log.Println("login: ", login, " pwd: ", passcode)
+	if pwd, ok := a.db[login]; ok {
+		if pwd == passcode {
 			return true
 		}
 	}
