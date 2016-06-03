@@ -44,7 +44,7 @@ func main() {
 var listenAddr = flag.String("addr", ":61613", "Listen address")
 var helpFlag = flag.Bool("help", false, "Show this help text")
 var configAuthFile = flag.String("auth", "auth.json", "configfile with logins and passwords")
-var logFile = flag.String("logfile", "stomp.-server.log", "logfile")
+var logFile = flag.String("logfile", "stomp-server.log", "logfile")
 
 func main() {
 	flag.Parse()
@@ -53,6 +53,7 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+	flag.Parsed()
 
 	l, err := net.Listen("tcp", *listenAddr)
 	if err != nil {
@@ -63,5 +64,5 @@ func main() {
 	a := auth.NewAuth(*configAuthFile)
 
 	log.Println("listening on", l.Addr().Network(), l.Addr().String())
-	server.Serve(l, &a)
+	server.Serve(l, a)
 }
