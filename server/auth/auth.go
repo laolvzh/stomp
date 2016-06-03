@@ -19,11 +19,11 @@ type AuthParams struct {
 	Passcode string `json:Passcode`
 }
 
-func NewAuth(fileWithLogins string) AuthDB {
+func NewAuth(fileWithLogins string) *AuthDB {
 	a := AuthDB{configAuthDB: fileWithLogins}
 	a.initAuthDB()
 
-	return a
+	return &a
 }
 
 func (a *AuthDB) Authenticate(login, passcode string) bool {
