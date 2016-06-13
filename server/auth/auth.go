@@ -1,16 +1,18 @@
 package auth
 
 import (
-	//	"bufio"
 	"bytes"
 	"encoding/json"
+	"github.com/ventu-io/slf"
 	"io"
-	"log"
 	"os"
 )
 
+const pwdCurr string = "github.com/go-stomp/stomp/server/auth"
+
 type AuthDB struct {
 	configAuthDB string
+	log          slf.StructuredLogger
 	db           map[string]string // Map with login in key and password in value for authentification field
 }
 
@@ -20,14 +22,14 @@ type AuthParams struct {
 }
 
 func NewAuth(fileWithLogins string) *AuthDB {
-	a := AuthDB{configAuthDB: fileWithLogins}
+	a := AuthDB{configAuthDB: fileWithLogins, log: slf.WithContext(pwdCurr)}
 	a.initAuthDB()
 
 	return &a
 }
 
 func (a *AuthDB) Authenticate(login, passcode string) bool {
-	//log.Println("login: ", login, " pwd: ", passcode)
+	a.log.Debugf("login: %s, pwd: %s ", login, passcode)
 	if pwd, ok := a.db[login]; ok {
 		if pwd == passcode {
 			return true
@@ -44,13 +46,13 @@ func (a *AuthDB) initAuthDB() {
 
 	fp, err := os.Open(a.configAuthDB)
 	if err != nil {
-		log.Println("Could not read data from configureAuthFile: ", err)
+		a.log.Errorf("Could not read data from configureAuthFile: %s ", err.Error())
 	}
 	defer fp.Close()
 
 	_, err = io.Copy(buf, fp)
 	if err != nil {
-		log.Println("Could not process data from configureAuthFile: ", err)
+		a.log.Errorf("Could not process data from configureAuthFile: %s ", err.Error())
 	}
 
 	authDataJSON := buf.Bytes()
@@ -60,14 +62,14 @@ func (a *AuthDB) initAuthDB() {
 
 	err = json.Unmarshal(authDataJSON, &authData)
 	if err != nil {
-		log.Println("Couldn't get auth params from configureAuthFile: ", err)
+		a.log.Errorf("Couldn't get auth params from configureAuthFile: %s", err.Error())
 	}
 
 	dataMap := make(map[string]string)
 	for _, userAuth := range authData {
 		if len(dataMap) != 0 {
 			if _, userExist := dataMap[userAuth.Login]; userExist {
-				log.Println("Warning: user already exists in database; ignored")
+				a.log.Warn("User already exists in database; ignored")
 				continue
 			}
 		}
