@@ -1,0 +1,6 @@
+19:47:48.576 [[37mFATAL[0m] main-stompd.go: Failed to listen: listen tcp 127.0.0.1:61613: bind: address already in use 
+19:55:15.823 [[37mFATAL[0m] main-stompd.go: Failed to listen: listen tcp 127.0.0.1:61613: bind: address already in use 
+19:59:09.866 [[31mERROR[0m] github.com/go-stomp/stomp/server/client: authentication failed 
+19:59:10.867 [[31mERROR[0m] github.com/go-stomp/stomp/server/client: read failed: read tcp 127.0.0.1:61614->127.0.0.1:51240: use of closed network connection: 127.0.0.1:51240, 
+20:03:40.377 [[31mERROR[0m] github.com/go-stomp/stomp/server/client: authentication failed 
+20:03:41.378 [[31mERROR[0m] github.com/go-stomp/stomp/server/client: read failed: read tcp 127.0.0.1:61614->127.0.0.1:54153: use of closed network connection: 127.0.0.1:54153, 
