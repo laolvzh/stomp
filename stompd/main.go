@@ -20,7 +20,7 @@ import (
 	"github.com/ventu-io/slog"
 	"net"
 	"os"
-	"path/filepath"
+	//	"path/filepath"
 )
 
 // TODO: experimenting with ways to gracefully shutdown the server,
@@ -46,11 +46,10 @@ func main() {
 var (
 	listenAddr     = flag.String("addr", ":61613", "Listen address")
 	helpFlag       = flag.Bool("help", false, "Show this help text")
-	configAuthFile = flag.String("auth", "auth.json", "configfile with logins and passwords")
+	configAuthFile = flag.String("auth", "opt/go-stomp/go-stomp-server/auth.json", "configfile with logins and passwords")
 	debugMode      = flag.Bool("debug", true, "Debug mode")
+	logPath        = flag.String("logpath", "/opt/go-stomp/go-stomp-server/logs/", "path to logfiles")
 )
-
-const LogDir = "logs/"
 
 const (
 	errorFilename = "error.log"
@@ -79,24 +78,25 @@ func init() {
 
 	// TODO: create directory in /var/log, if in linux:
 	// if runtime.GOOS == "linux" {
-	os.Mkdir("."+string(filepath.Separator)+LogDir, 0766)
+	//os.Mkdir("."+string(filepath.Separator)+LogDir, 0766)
+	os.Mkdir(*logPath, 0755)
 
 	// interestings with err: if not initialize err before,
 	// how can i use global logfileInfo?
 	var err error
-	logfileInfo, err = os.OpenFile(LogDir+infoFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	logfileInfo, err = os.OpenFile(*logPath+infoFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0755)
 	if err != nil {
-		log.Panicf("Could not open/create %s logfile", LogDir+infoFilename)
+		log.Panicf("Could not open/create %s logfile", *logPath+infoFilename)
 	}
 
-	logfileDebug, err = os.OpenFile(LogDir+debugFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	logfileDebug, err = os.OpenFile(*logPath+debugFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0755)
 	if err != nil {
-		log.Panicf("Could not open/create logfile", LogDir+debugFilename)
+		log.Panicf("Could not open/create logfile", *logPath+debugFilename)
 	}
 
-	logfileError, err = os.OpenFile(LogDir+errorFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	logfileError, err = os.OpenFile(*logPath+errorFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0755)
 	if err != nil {
-		log.Panicf("Could not open/create logfile", LogDir+errorFilename)
+		log.Panicf("Could not open/create logfile", *logPath+errorFilename)
 	}
 
 	if *debugMode == true {
