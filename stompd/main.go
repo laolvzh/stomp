@@ -30,6 +30,7 @@ var (
 	configAuthFile = flag.String("auth", "auth.json", "configfile with logins and passwords")
 	debugMode      = flag.Bool("debug", true, "Debug mode")
 	logPath        = flag.String("logpath", "logs", "path to logfiles")
+	logLevel       = flag.String("loglevel", "INFO", "IFOO, DEBUG, ERROR, WARN, PANIC, FATAL")
 )
 
 const (
@@ -47,31 +48,18 @@ var (
 )
 
 // Init loggers
-func init() {
+func initLoggers() {
 
 	var logHandlers []slog.EntryHandler
 
 	// optionally define the format (this here is the default one)
 	//bhInfo.SetTemplate("{{.Time}} [\033[{{.Color}}m{{.Level}}\033[0m] {{.Context}}{{if .Caller}} ({{.Caller}}){{end}}: {{.Message}}{{if .Error}} (\033[31merror: {{.Error}}\033[0m){{end}} {{.Fields}}")
 
-	basiclog.ConfigWriterOutput(&logHandlers, slf.LevelError, os.Stderr)
+	basiclog.ConfigWriterOutput(&logHandlers, getLogLevel(*logLevel), os.Stderr)
 
-	pathForLogs, err := getPathForLogDir()
+	err := setLogOutput(&logHandlers)
 	if err != nil {
-		basiclog.SafeLog("[go-stomp-server] Error: couldn't get binary path.\n")
-	} else {
-		err = os.Mkdir(pathForLogs, 0755)
-		if err != nil {
-			basiclog.SafeLog("[go-stomp-server] Error: couldn't create logdir: program will be working without logs." +
-				pathForLogs + " " + err.Error() + "\n")
-		} else {
-			basiclog.ConfigFileOutput(&logHandlers, slf.LevelDebug, filepath.Join(pathForLogs, debugFilename))
-			basiclog.ConfigFileOutput(&logHandlers, slf.LevelInfo, filepath.Join(pathForLogs, infoFilename))
-			basiclog.ConfigFileOutput(&logHandlers, slf.LevelError, filepath.Join(pathForLogs, errorFilename))
-		}
-	}
-	if *debugMode {
-		basiclog.ConfigWriterOutput(&logHandlers, slf.LevelInfo, os.Stdout)
+		basiclog.SafeLog("[go-stomp-server] Error init loggers: " + err.Error() + "\n")
 	}
 
 	lf = slog.New()
@@ -83,13 +71,9 @@ func init() {
 }
 
 func main() {
+
 	flag.Parse()
-	if *helpFlag {
-		log.Warnf("Usage of %s:\n", os.Args[0])
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
-	flag.Parsed()
+	initLoggers()
 
 	l, err := net.Listen("tcp", *listenAddr)
 	if err != nil {
@@ -118,4 +102,65 @@ func getPathForLogDir() (string, error) {
 		return fpath, nil
 	}
 
+}
+
+// exists returns whether the given file or directory exists or not
+func exists(path string) (bool, error) {
+
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+func setLogOutput(logHandlers *[]slog.EntryHandler) error {
+
+	pathForLogs, err := getPathForLogDir()
+	if err != nil {
+		return err
+	}
+	exist, err := exists(pathForLogs)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		err = os.Mkdir(pathForLogs, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
+	basiclog.ConfigFileOutput(logHandlers, slf.LevelDebug, filepath.Join(pathForLogs, debugFilename))
+	basiclog.ConfigFileOutput(logHandlers, slf.LevelInfo, filepath.Join(pathForLogs, infoFilename))
+	basiclog.ConfigFileOutput(logHandlers, slf.LevelError, filepath.Join(pathForLogs, errorFilename))
+
+	return nil
+}
+
+func getLogLevel(lvl string) slf.Level {
+
+	switch lvl {
+	case slf.LevelDebug.String():
+		return slf.LevelDebug
+
+	case slf.LevelInfo.String():
+		return slf.LevelInfo
+
+	case slf.LevelWarn.String():
+		return slf.LevelWarn
+
+	case slf.LevelError.String():
+		return slf.LevelError
+
+	case slf.LevelFatal.String():
+		return slf.LevelFatal
+	case slf.LevelPanic.String():
+		return slf.LevelPanic
+	default:
+		return slf.LevelDebug
+	}
 }
