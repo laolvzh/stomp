@@ -12,43 +12,24 @@ TODO: Logging options (syslog, windows event log)
 package main
 
 import (
-	"Nominatim/lib/utils/basic"
+	"Nominatim/lib/utils/basiclog"
 	"flag"
 	"github.com/go-stomp/stomp/server"
 	"github.com/go-stomp/stomp/server/auth"
+	"github.com/kardianos/osext"
 	"github.com/ventu-io/slf"
 	"github.com/ventu-io/slog"
 	"net"
 	"os"
-	//	"path/filepath"
+	"path/filepath"
 )
-
-// TODO: experimenting with ways to gracefully shutdown the server,
-// at the moment it just dies ungracefully on SIGINT.
-
-/*
-
-func main() {
-	// create a channel for listening for termination signals
-	stopChannel := newStopChannel()
-
-	for {
-		select {
-		case sig := <-stopChannel:
-			log.Println("received signal:", sig)
-			break
-		}
-	}
-
-}
-*/
 
 var (
 	listenAddr     = flag.String("addr", ":61613", "Listen address")
 	helpFlag       = flag.Bool("help", false, "Show this help text")
-	configAuthFile = flag.String("auth", "opt/go-stomp/go-stomp-server/auth.json", "configfile with logins and passwords")
+	configAuthFile = flag.String("auth", "auth.json", "configfile with logins and passwords")
 	debugMode      = flag.Bool("debug", true, "Debug mode")
-	logPath        = flag.String("logpath", "/opt/go-stomp/go-stomp-server/logs/", "path to logfiles")
+	logPath        = flag.String("logpath", "logs", "path to logfiles")
 )
 
 const (
@@ -58,9 +39,9 @@ const (
 )
 
 var (
-	bhDebug, bhInfo, bhError, bhDebugConsole *basic.Handler
-	logfileInfo, logfileDebug, logfileError  *os.File
-	lf                                       slog.LogFactory
+	bhDebug, bhInfo, bhError, bhDebugConsole, bhStdError *basiclog.Handler
+	logfileInfo, logfileDebug, logfileError              *os.File
+	lf                                                   slog.LogFactory
 
 	log slf.StructuredLogger
 )
@@ -68,59 +49,37 @@ var (
 // Init loggers
 func init() {
 
-	bhDebug = basic.New(slf.LevelDebug)
-	bhDebugConsole = basic.New(slf.LevelDebug)
-	bhInfo = basic.New()
-	bhError = basic.New(slf.LevelError)
+	var logHandlers []slog.EntryHandler
 
 	// optionally define the format (this here is the default one)
-	bhInfo.SetTemplate("{{.Time}} [\033[{{.Color}}m{{.Level}}\033[0m] {{.Context}}{{if .Caller}} ({{.Caller}}){{end}}: {{.Message}}{{if .Error}} (\033[31merror: {{.Error}}\033[0m){{end}} {{.Fields}}")
+	//bhInfo.SetTemplate("{{.Time}} [\033[{{.Color}}m{{.Level}}\033[0m] {{.Context}}{{if .Caller}} ({{.Caller}}){{end}}: {{.Message}}{{if .Error}} (\033[31merror: {{.Error}}\033[0m){{end}} {{.Fields}}")
 
-	// TODO: create directory in /var/log, if in linux:
-	// if runtime.GOOS == "linux" {
-	//os.Mkdir("."+string(filepath.Separator)+LogDir, 0766)
-	os.Mkdir(*logPath, 0755)
+	basiclog.ConfigWriterOutput(&logHandlers, slf.LevelError, os.Stderr)
 
-	// interestings with err: if not initialize err before,
-	// how can i use global logfileInfo?
-	var err error
-	logfileInfo, err = os.OpenFile(*logPath+infoFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0755)
+	pathForLogs, err := getPathForLogDir()
 	if err != nil {
-		log.Panicf("Could not open/create %s logfile", *logPath+infoFilename)
+		basiclog.SafeLog("[go-stomp-server] Error: couldn't get binary path.\n")
+	} else {
+		err = os.Mkdir(pathForLogs, 0755)
+		if err != nil {
+			basiclog.SafeLog("[go-stomp-server] Error: couldn't create logdir: program will be working without logs." +
+				pathForLogs + " " + err.Error() + "\n")
+		} else {
+			basiclog.ConfigFileOutput(&logHandlers, slf.LevelDebug, filepath.Join(pathForLogs, debugFilename))
+			basiclog.ConfigFileOutput(&logHandlers, slf.LevelInfo, filepath.Join(pathForLogs, infoFilename))
+			basiclog.ConfigFileOutput(&logHandlers, slf.LevelError, filepath.Join(pathForLogs, errorFilename))
+		}
 	}
-
-	logfileDebug, err = os.OpenFile(*logPath+debugFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0755)
-	if err != nil {
-		log.Panicf("Could not open/create logfile", *logPath+debugFilename)
+	if *debugMode {
+		basiclog.ConfigWriterOutput(&logHandlers, slf.LevelInfo, os.Stdout)
 	}
-
-	logfileError, err = os.OpenFile(*logPath+errorFilename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0755)
-	if err != nil {
-		log.Panicf("Could not open/create logfile", *logPath+errorFilename)
-	}
-
-	if *debugMode == true {
-		bhDebugConsole.SetWriter(os.Stdout)
-	}
-
-	bhDebug.SetWriter(logfileDebug)
-	bhInfo.SetWriter(logfileInfo)
-	bhError.SetWriter(logfileError)
 
 	lf = slog.New()
-	lf.SetLevel(slf.LevelDebug) //lf.SetLevel(slf.LevelDebug, "app.package1", "app.package2")
-	lf.SetEntryHandlers(bhInfo, bhError, bhDebug)
-
-	if *debugMode == true {
-		lf.SetEntryHandlers(bhInfo, bhError, bhDebug, bhDebugConsole)
-	} else {
-		lf.SetEntryHandlers(bhInfo, bhError, bhDebug)
-	}
-
-	// make this into the one used by all the libraries
+	lf.SetLevel(slf.LevelDebug)
+	lf.SetEntryHandlers(logHandlers...)
 	slf.Set(lf)
 
-	log = slf.WithContext("main-stompd.go")
+	log = slf.WithContext("go-stompd-server.go")
 }
 
 func main() {
@@ -142,4 +101,21 @@ func main() {
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
 	server.Serve(l, a)
+}
+
+func getPathForLogDir() (string, error) {
+
+	if filepath.IsAbs(*logPath) == true {
+		return *logPath, nil
+	} else {
+		filename, err := osext.Executable()
+		if err != nil {
+			return "", err
+		}
+
+		fpath := filepath.Dir(filename)
+		fpath = filepath.Join(fpath, *logPath)
+		return fpath, nil
+	}
+
 }
