@@ -25,7 +25,7 @@ var (
 	helpFlag       = flag.Bool("help", false, "Show this help text")
 	configAuthFile = flag.String("auth", "auth.json", "configfile with logins and passwords")
 	logPath        = flag.String("logpath", "logs", "path to logfiles")
-	logLevel       = flag.String("loglevel", "INFO", "IFOO, DEBUG, ERROR, WARN, PANIC, FATAL - loglevel for stderr")
+	logLevel       = flag.String("loglevel", "WARN", "IFOO, DEBUG, ERROR, WARN, PANIC, FATAL - loglevel for stderr")
 )
 
 func main() {
