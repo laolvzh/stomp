@@ -32,7 +32,8 @@ func main() {
 
 	flag.Parse()
 	slflog.InitLoggers(*logPath, *logLevel)
-	defer slflog.Close()
+	// TODO: add Close method!!
+	//defer slflog.Close()
 	log := slf.WithContext("go-stompd-server.go")
 
 	l, err := net.Listen("tcp", *listenAddr)
