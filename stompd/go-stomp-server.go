@@ -11,6 +11,9 @@ TODO: Logging options (syslog, windows event log)
 */
 package main
 
+/*go build -ldflags "-X github.com/KristinaEtc/slflog.configLogfile=/usr/share/go-stomp-server/go-stomp-server.logconfig
+-X go-stomp-server.pathToConfig=/usr/share/go-stomp-server/go-stomp-server.config" go-stomp-server.go */
+
 //important: do not move
 import (
 	"flag"
@@ -24,7 +27,7 @@ import (
 	"github.com/ventu-io/slf"
 )
 
-var pathToConfig string
+var configFile string
 
 var log = slf.WithContext("go-stompd-server.go")
 
@@ -49,12 +52,13 @@ func main() {
 	a := auth.NewAuth(*configAuthFile)
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
+	log.Error("[go-stomp-server]--------------------------new connection---------------------")
 	server.Serve(l, a)
 }
 
 func getPathToConfig() string {
 
-	var path = pathToConfig
+	var path = configFile
 
 	// path to config was setted by a linker value
 	if path != "" {
@@ -77,6 +81,7 @@ func getPathToConfig() string {
 			path = pathTemp + ".config"
 		}
 	}
+	log.WithCaller(slf.CallerShort).Infof("Configfile that will be used: [%s]", path)
 	return path
 }
 
