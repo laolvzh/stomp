@@ -5,5 +5,5 @@
 		"DEBUG": "debug.log"
 	},
 	"Stderr":"DEBUG",
-	"Logpath": "/var/log/go-stomp-server"
+	"Logpath": "logs"
 }

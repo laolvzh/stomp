@@ -14,7 +14,6 @@ package main
 /*go build -ldflags "-X github.com/KristinaEtc/slflog.configLogfile=/usr/share/go-stomp-server/go-stomp-server.logconfig
 -X go-stomp-server.pathToConfig=/usr/share/go-stomp-server/go-stomp-server.config" go-stomp-server.go */
 
-//important: do not move
 import (
 	"flag"
 	"net"
