@@ -54,6 +54,10 @@ build:
 getbin:
 	@mv ${EXENAME} ${bindir}/
 
+clean:
+	@echo -n "Deleting unnecessary files..."
+	rm -r autom4te.cache/ backup-*tgz config.status configure *.deb config.log
+
 install: info makedir configure getlibs getbin
 
 .PHONY: info makedir configure getlibs build
