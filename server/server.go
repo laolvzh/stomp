@@ -63,7 +63,7 @@ func ListenAndServe(addr string, a Authenticator) error {
 // Serve accepts incoming TCP connections on the listener l, creating a new
 // STOMP service thread for each connection.
 func Serve(l net.Listener, a Authenticator) error {
-	s := &Server{Authenticator: a}
+	s := &Server{Authenticator: a, HeartBeat: 15*time.Second}
 	defer log.Debug("Serve() function processed")
 
 	return s.Serve(l)
