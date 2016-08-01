@@ -60,7 +60,7 @@ func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
 		txStore:        &txStore{},
 		subList:        NewSubscriptionList(),
 		subs:           make(map[string]*Subscription),
-		log:            slf.WithContext(pwdCurr),
+		log:            slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": rw.RemoteAddr()}),
 	}
 	go c.readLoop()
 	go c.processLoop()
