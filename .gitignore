@@ -30,3 +30,13 @@ examples/client_test/client.log*
 stompd/stompd
 stompd/logs/*
 
+
+#deb-package
+stompd/Makefile
+stompd/autom4te.cache/
+stompd/backup-080120161814-pre-go-stomp-server.tgz
+stompd/config.status
+stompd/configure
+stompd/go-stomp-server_0.6-1_amd64.deb
+stompd/make-dev.sh
+
