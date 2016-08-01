@@ -123,7 +123,11 @@ func (c *Conn) readLoop() {
 	for {
 		if readTimeout == time.Duration(0) {
 			// infinite timeout
-			c.rw.SetReadDeadline(time.Time{})
+			if expectingConnect {//connect frame timeout
+				c.rw.SetReadDeadline(time.Now().Add(3*time.Minute))
+			}else{
+				c.rw.SetReadDeadline(time.Time{})
+			}
 		} else {
 			c.rw.SetReadDeadline(time.Now().Add(readTimeout*2))
 		}
