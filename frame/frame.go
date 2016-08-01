@@ -3,6 +3,10 @@ Package frame provides functionality for manipulating STOMP frames.
 */
 package frame
 
+import (
+	"fmt"
+)
+
 // A Frame represents a STOMP frame. A frame consists of a command
 // followed by a collection of header entries, and then an optional
 // body.
@@ -35,4 +39,9 @@ func (f *Frame) Clone() *Frame {
 		copy(fc.Body, f.Body)
 	}
 	return fc
+}
+
+
+func (f *Frame) String() string {
+	return fmt.Sprintf("%s %s", f.Command, string(f.Body))
 }
