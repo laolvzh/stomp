@@ -1,0 +1,8 @@
+Cервер, работающий по протоколу STOMP (https://stomp.github.io/).
+Фактически является брокером сообщений (см. документацию протокола stomp). В данном контексте - связующее звено между клиентом, который посылает запрос на получение местоположения, и модулем go-stomp-nominatim.
+
+Usage of ./go-stomp-server:
+  -addr string
+        Listen address (default ":61613")
+  -conf string
+        configfile with logins and passwords (default near a binary file)

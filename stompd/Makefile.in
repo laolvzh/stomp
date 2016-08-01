@@ -1,0 +1,59 @@
+#!/usr/bin/make -f
+
+GO=$(shell which go)
+#GO = @go build
+GOINSTALL=$(GO) install
+GOBUILD=$(GO) build
+GOCLEAN=$(GO) clean
+GOGET=$(GO) get
+
+EXENAME = go-stomp-server
+#BUILDPATH ="/usr/local/$(EXENAME)"
+BUILDPATH = @prefix@
+
+logdir = "/var/log/${EXENAME}"
+bindir = "/bin"
+demondir = "/etc/init"
+confdir = "/etc/${EXENAME}"
+
+CONF = "${EXENAME}.config"
+LOGCONF = "${EXENAME}.logconfig"
+DEMONF = "${EXENAME}.conf"
+
+all: build
+
+info:
+	@echo "Makefile for go-stomp-server. Installing..."
+	@echo "${BUILDPATH}"
+
+makedir:
+	@echo -n "Start building a tree... "
+	@if [ ! -d ${BUILDPATH} ] ; then mkdir ${BUILDPATH} ; fi
+	@if [ ! -d ${demondir} ] ; then mkdir -p ${demondir} ; fi
+	@if [ ! -d ${bindir} ] ; then mkdir -p ${bindir} ; fi
+	@if [ ! -d ${logdir} ] ; then mkdir -p ${logdir} ; fi
+	@if [ ! -d ${confdir} ] ; then mkdir -p ${confdir} ; fi
+	@echo "Done."
+
+configure:
+	@echo -n "Preparing config files... "
+	@cp ${CONF} ${confdir}/${CONF}
+	@cp ${LOGCONF} ${confdir}/
+	@cp ${DEMONF} ${demondir}
+	@echo "Done."
+
+getlibs:
+	@echo -n "Getting dependencies... "
+	@echo "Done."
+
+build:
+	@echo -n "Start building a project... "
+	@${GOBUILD} "${EXENAME}.go"
+	@echo "Done."
+
+getbin:
+	@mv ${EXENAME} ${bindir}/
+
+install: info makedir configure getlibs getbin
+
+.PHONY: info makedir configure getlibs build
