@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+autoconf
 ./configure --prefix=/
 make
 sudo checkinstall -D --pkgversion=0.6 --pkgname=go-stomp-server \
