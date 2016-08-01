@@ -149,8 +149,11 @@ func (c *Conn) readLoop() {
 
 		if f == nil {
 			// if the frame is nil, then it is a heartbeat
+			c.log.Debug("heart-beat received")
 			continue
 		}
+
+		c.log.Debugf("frame %v", f)
 
 		// If we are expecting a CONNECT or STOMP command, extract
 		// the heart-beat header and work out the read timeout.
@@ -158,6 +161,7 @@ func (c *Conn) readLoop() {
 		// some extent, but letting this go-routine work out its own
 		// read timeout means no synchronization is necessary.
 		if expectingConnect {
+			c.log.Debug("connect frame?")
 			// Expecting a CONNECT or STOMP command, get the heart-beat
 			cx, _, err := getHeartBeat(f)
 
@@ -195,6 +199,9 @@ func (c *Conn) processLoop() {
 
 	c.writer = frame.NewWriter(c.rw)
 	c.stateFunc = connecting
+
+	c.log.Debugf("processLoop: %s", c.writeTimeout)
+
 	for {
 		var timerChannel <-chan time.Time
 		var timer *time.Timer
@@ -226,6 +233,7 @@ func (c *Conn) processLoop() {
 			// write the frame to the client
 			err := c.writer.Write(f)
 			if err != nil {
+				c.log.Errorf("processLoop writeChannel: write error %v", err)
 				// if there is an error writing to
 				// the client, there is not much
 				// point trying to send an ERROR frame,
@@ -318,6 +326,7 @@ func (c *Conn) processLoop() {
 
 		case _ = <-timerChannel:
 			// write a heart-beat
+			c.log.Debug("write heart-beat")
 			err := c.writer.Write(nil)
 			if err != nil {
 				return
