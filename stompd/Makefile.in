@@ -12,13 +12,17 @@ EXENAME = go-stomp-server
 BUILDPATH = @prefix@
 
 logdir = "/var/log/${EXENAME}"
-bindir = "/bin"
+bindir = "/usr/bin"
 demondir = "/etc/init"
 confdir = "/etc/${EXENAME}"
 
 CONF = "${EXENAME}.config"
 LOGCONF = "${EXENAME}.logconfig"
 DEMONF = "${EXENAME}.conf"
+
+GOFLAGS = "-o go-stomp-server \
+	  -ldflags \"-X github.com/KristinaEtc/slflog.configLogFile=${confdir}/${LOGCONF} \
+	  -X main.configFile=${confdir}/${CONF}\" "
 
 all: build
 
@@ -48,7 +52,7 @@ getlibs:
 
 build:
 	@echo -n "Start building a project... "
-	@${GOBUILD} "${EXENAME}.go"
+	@${GOBUILD} $(shell echo $(GOFLAGS))"${EXENAME}.go"
 	@echo "Done."
 
 getbin:
