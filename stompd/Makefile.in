@@ -48,6 +48,14 @@ configure:
 
 getlibs:
 	@echo -n "Getting dependencies... "
+	@if ( [ ! -d ${GOROOT}/src/github.com/KristinaEtc/slflog" ] || [ ! -d ${GOPATH}/src/github.com/KristinaEtc/slflog" ] ) ; then \
+		${GOGET} github.com/KristinaEtc/slflog ; fi
+	@if ( [ ! -d ${GOROOT}/src/github.com/src/github.com/kardianos/osext" ] || [ ! -d ${GOPATH}/src/github.com/kardianos/osext" ] ) ; then \
+		${GOGET} github.com/kardianos/osext ; fi
+	@if ( [ ! -d ${GOROOT}/src/github.com/KristinaEtc/auth" ] || [ ! -d ${GOPATH}/src/github.com/KristinaEtc/auth" ] ) ; then \
+		${GOGET} github.com/KristinaEtc/auth ; fi
+	@if ( [ ! -d ${GOROOT}/src/github.com/ventu-io/slf" ] || [ ! -d ${GOPATH}/src/github.com/ventu-io/slf" ] ) ; then \
+		${GOGET} github.com/ventu-io/slf ; fi
 	@echo "Done."
 
 build:
