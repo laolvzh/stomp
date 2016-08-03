@@ -16,6 +16,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"net"
+	"runtime"
 
 	_ "github.com/KristinaEtc/slflog"
 	"github.com/go-stomp/stomp/server"
@@ -88,5 +89,11 @@ func getConfigFilename() string {
 	if err != nil {
 		log.WithCaller(slf.CallerShort).Errorf("Error: could not get a path to binary file: %s\n", err.Error())
 	}
+	if runtime.GOOS == "windows" {
+		// without ".exe"
+		binaryPath = binaryPath[:len(binaryPath)-4]
+		log.WithCaller(slf.CallerShort).WithField("binaryPath", binaryPath).Debug("Configfile for windows")
+	}
+
 	return binaryPath + ".config"
 }
