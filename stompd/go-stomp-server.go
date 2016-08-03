@@ -20,6 +20,7 @@ import (
 	_ "github.com/KristinaEtc/slflog"
 	"github.com/go-stomp/stomp/server"
 	"github.com/go-stomp/stomp/server/auth"
+	"github.com/kardianos/osext"
 	"github.com/ventu-io/slf"
 )
 
@@ -30,8 +31,7 @@ var log = slf.WithContext("go-stompd-server.go")
 // GlobalConf is a struct with global options,
 // like server address and config auth filename
 type GlobalConf struct {
-	ListenAddr     string
-	ConfigAuthFile string
+	ListenAddr string
 }
 
 // ConfFile is a file with all program options
@@ -40,8 +40,7 @@ type ConfFile struct {
 }
 
 var defaulfGlobalOpt = GlobalConf{
-	ListenAddr:     "61614",
-	ConfigAuthFile: "",
+	ListenAddr: ":61614",
 }
 
 func main() {
@@ -60,7 +59,7 @@ func main() {
 	}
 	defer func() { l.Close() }()
 
-	a := auth.NewAuth(cf.Global.ConfigAuthFile)
+	a := auth.NewAuth(getConfigFilename())
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
 	log.Error("-----------------------------------------------")
@@ -68,15 +67,26 @@ func main() {
 }
 
 func getGlobalConf(cf *ConfFile) {
-	file, e := ioutil.ReadFile("global.conf")
+
+	file, e := ioutil.ReadFile(getConfigFilename())
 	if e != nil {
-		log.Errorf("File error: %s\n", e.Error())
+		log.WithCaller(slf.CallerShort).Errorf("Error: %s\n", e.Error())
 		cf.Global = defaulfGlobalOpt
 	}
 
 	if err := json.Unmarshal([]byte(file), cf); err != nil {
-		log.Error(err.Error())
+		log.WithCaller(slf.CallerShort).Errorf("Error parsing JSON: %s", err.Error())
 		cf.Global = defaulfGlobalOpt
+	} else {
+		log.Infof("Global options will be used from [%s] file", getConfigFilename())
 	}
 	//log.Errorf("Results: %v\n", cf)
+}
+
+func getConfigFilename() string {
+	binaryPath, err := osext.Executable()
+	if err != nil {
+		log.WithCaller(slf.CallerShort).Errorf("Error: could not get a path to binary file: %s\n", err.Error())
+	}
+	return binaryPath + ".config"
 }

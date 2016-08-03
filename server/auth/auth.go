@@ -52,13 +52,15 @@ func (a *AuthDB) initAuthDB() {
 
 	fp, err := os.Open(a.configAuthDB)
 	if err != nil {
-		a.log.Errorf("Could not read data from configureAuthFile: %s ", err.Error())
+		a.log.WithCaller(slf.CallerShort).Errorf("Could not read data from configureAuthFile: %s ", err.Error())
+		return
 	}
 	defer fp.Close()
 
 	_, err = io.Copy(buf, fp)
 	if err != nil {
-		a.log.Errorf("Could not process data from configureAuthFile: %s ", err.Error())
+		a.log.WithCaller(slf.CallerShort).Errorf("Could not process data from configureAuthFile: %s ", err.Error())
+		return
 	}
 
 	authDataJSON := buf.Bytes()
