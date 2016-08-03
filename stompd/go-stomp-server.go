@@ -11,18 +11,15 @@ TODO: Logging options (syslog, windows event log)
 */
 package main
 
-/*go build -ldflags "-X github.com/KristinaEtc/slflog.configLogfile=/usr/share/go-stomp-server/go-stomp-server.logconfig
--X go-stomp-server.pathToConfig=/usr/share/go-stomp-server/go-stomp-server.config" go-stomp-server.go */
-
 import (
+	"encoding/json"
 	"flag"
+	"io/ioutil"
 	"net"
-	"os"
 
 	_ "github.com/KristinaEtc/slflog"
 	"github.com/go-stomp/stomp/server"
 	"github.com/go-stomp/stomp/server/auth"
-	"github.com/kardianos/osext"
 	"github.com/ventu-io/slf"
 )
 
@@ -30,69 +27,56 @@ var configFile string
 
 var log = slf.WithContext("go-stompd-server.go")
 
-var (
-	listenAddr     = flag.String("addr", ":61613", "Listen address")
-	helpFlag       = flag.Bool("help", false, "Show this help text")
-	configAuthFile = flag.String("conf", getPathToConfig(), "configfile with logins and passwords")
-)
+// GlobalConf is a struct with global options,
+// like server address and config auth filename
+type GlobalConf struct {
+	ListenAddr     string
+	ConfigAuthFile string
+}
+
+// ConfFile is a file with all program options
+type ConfFile struct {
+	Global GlobalConf
+}
+
+var defaulfGlobalOpt = GlobalConf{
+	ListenAddr:     "61614",
+	ConfigAuthFile: "",
+}
 
 func main() {
 
 	flag.Parse()
+
+	var cf ConfFile
+	getGlobalConf(&cf)
+
 	// TODO: add Close method!!
 	//defer slflog.Close()
 
-	l, err := net.Listen("tcp", *listenAddr)
+	l, err := net.Listen("tcp", cf.Global.ListenAddr)
 	if err != nil {
 		log.WithCaller(slf.CallerShort).Fatalf("Failed to listen: %s", err.Error())
 	}
 	defer func() { l.Close() }()
 
-	a := auth.NewAuth(*configAuthFile)
+	a := auth.NewAuth(cf.Global.ConfigAuthFile)
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
-	log.Error("[go-stomp-server]--------------------------new connection---------------------")
+	log.Error("-----------------------------------------------")
 	server.Serve(l, a)
 }
 
-func getPathToConfig() string {
-
-	var path = configFile
-
-	// path to config was setted by a linker value
-	if path != "" {
-		exist, err := exists(path)
-		if err != nil {
-			log.WithCaller(slf.CallerShort).Errorf("Error: wrong configure file from linker value %s: %s\n", path, err.Error())
-			path = ""
-		} else if exist != true {
-			log.WithCaller(slf.CallerShort).Errorf("Error: Configure file from linker value %s: does not exist\n", path)
-			path = ""
-		}
+func getGlobalConf(cf *ConfFile) {
+	file, e := ioutil.ReadFile("global.conf")
+	if e != nil {
+		log.Errorf("File error: %s\n", e.Error())
+		cf.Global = defaulfGlobalOpt
 	}
 
-	// no path from a linker value or wrong linker value; searching where a binary is situated
-	if path == "" {
-		pathTemp, err := osext.Executable()
-		if err != nil {
-			log.WithCaller(slf.CallerShort).Errorf("Error: could not get a path to binary file for getting configfile: %s\n", err.Error())
-		} else {
-			path = pathTemp + ".config"
-		}
+	if err := json.Unmarshal([]byte(file), cf); err != nil {
+		log.Error(err.Error())
+		cf.Global = defaulfGlobalOpt
 	}
-	log.WithCaller(slf.CallerShort).Infof("Configfile that will be used: [%s]", path)
-	return path
-}
-
-// Exists returns whether the given file or directory exists or not.
-func exists(path string) (bool, error) {
-
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
+	//log.Errorf("Results: %v\n", cf)
 }
