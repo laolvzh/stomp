@@ -3,9 +3,10 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/ventu-io/slf"
 	"io"
 	"os"
+
+	"github.com/ventu-io/slf"
 )
 
 const pwdCurr string = "github.com/go-stomp/stomp/server/auth"
@@ -17,8 +18,13 @@ type AuthDB struct {
 }
 
 type AuthParams struct {
-	Login    string `json:Login`
-	Passcode string `json:Passcode`
+	Login    string
+	Passcode string
+}
+
+// ConfFile is a file with all program options
+type ConfFile struct {
+	AuthData []AuthParams
 }
 
 func NewAuth(fileWithLogins string) *AuthDB {
@@ -58,15 +64,15 @@ func (a *AuthDB) initAuthDB() {
 	authDataJSON := buf.Bytes()
 	//log.Println("authDataJSON: ", string(authDataJSON))
 
-	authData := []AuthParams{}
+	var authData ConfFile
 
 	err = json.Unmarshal(authDataJSON, &authData)
 	if err != nil {
-		a.log.Errorf("Couldn't get auth params from configureAuthFile: %s", err.Error())
+		a.log.WithCaller(slf.CallerShort).Errorf("Couldn't get auth params from configureAuthFile: %s. No auth database.", err.Error())
 	}
 
 	dataMap := make(map[string]string)
-	for _, userAuth := range authData {
+	for _, userAuth := range authData.AuthData {
 		if len(dataMap) != 0 {
 			if _, userExist := dataMap[userAuth.Login]; userExist {
 				a.log.Warn("User already exists in database; ignored")
