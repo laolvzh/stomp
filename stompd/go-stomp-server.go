@@ -45,7 +45,7 @@ func main() {
 	flag.Parse()
 
 	var cf ConfFile
-	utils.GetGlobalConf(&cf, defaulfGlobalOpt)
+	utils.GetFromGlobalConf(&cf, defaulfGlobalOpt)
 
 	// TODO: add Close method!!
 	//defer slflog.Close()
