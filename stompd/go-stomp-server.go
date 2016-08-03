@@ -11,17 +11,15 @@ TODO: Logging options (syslog, windows event log)
 */
 package main
 
-import (
-	"encoding/json"
-	"flag"
-	"io/ioutil"
-	"net"
-	"runtime"
+import _ "github.com/KristinaEtc/slflog"
 
-	_ "github.com/KristinaEtc/slflog"
+import (
+	"flag"
+	"net"
+
+	"github.com/KristinaEtc/utils"
 	"github.com/go-stomp/stomp/server"
 	"github.com/go-stomp/stomp/server/auth"
-	"github.com/kardianos/osext"
 	"github.com/ventu-io/slf"
 )
 
@@ -40,16 +38,14 @@ type ConfFile struct {
 	Global GlobalConf
 }
 
-var defaulfGlobalOpt = GlobalConf{
-	ListenAddr: ":61614",
-}
+var defaulfGlobalOpt = ConfFile{Global: GlobalConf{ListenAddr: ":61614"}}
 
 func main() {
 
 	flag.Parse()
 
 	var cf ConfFile
-	getGlobalConf(&cf)
+	utils.GetGlobalConf(&cf, defaulfGlobalOpt)
 
 	// TODO: add Close method!!
 	//defer slflog.Close()
@@ -60,40 +56,9 @@ func main() {
 	}
 	defer func() { l.Close() }()
 
-	a := auth.NewAuth(getConfigFilename())
+	a := auth.NewAuth(utils.GetConfigFilename())
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
 	log.Error("-----------------------------------------------")
 	server.Serve(l, a)
-}
-
-func getGlobalConf(cf *ConfFile) {
-
-	file, e := ioutil.ReadFile(getConfigFilename())
-	if e != nil {
-		log.WithCaller(slf.CallerShort).Errorf("Error: %s\n", e.Error())
-		cf.Global = defaulfGlobalOpt
-	}
-
-	if err := json.Unmarshal([]byte(file), cf); err != nil {
-		log.WithCaller(slf.CallerShort).Errorf("Error parsing JSON: %s", err.Error())
-		cf.Global = defaulfGlobalOpt
-	} else {
-		log.Infof("Global options will be used from [%s] file", getConfigFilename())
-	}
-	//log.Errorf("Results: %v\n", cf)
-}
-
-func getConfigFilename() string {
-	binaryPath, err := osext.Executable()
-	if err != nil {
-		log.WithCaller(slf.CallerShort).Errorf("Error: could not get a path to binary file: %s\n", err.Error())
-	}
-	if runtime.GOOS == "windows" {
-		// without ".exe"
-		binaryPath = binaryPath[:len(binaryPath)-4]
-		log.WithCaller(slf.CallerShort).WithField("binaryPath", binaryPath).Debug("Configfile for windows")
-	}
-
-	return binaryPath + ".config"
 }
