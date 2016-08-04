@@ -1,20 +1,22 @@
 package auth
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"os"
-
+	"github.com/KristinaEtc/utils"
 	"github.com/ventu-io/slf"
 )
 
 const pwdCurr string = "github.com/go-stomp/stomp/server/auth"
 
+var log slf.StructuredLogger
+
+func init() {
+	log = slf.WithContext(pwdCurr)
+}
+
 type AuthDB struct {
 	configAuthDB string
-	log          slf.StructuredLogger
-	db           map[string]string // Map with login in key and password in value for authentification field
+
+	db map[string]string // Map with login in key and password in value for authentification field
 }
 
 type AuthParams struct {
@@ -28,14 +30,14 @@ type ConfFile struct {
 }
 
 func NewAuth(fileWithLogins string) *AuthDB {
-	a := AuthDB{configAuthDB: fileWithLogins, log: slf.WithContext(pwdCurr)}
+	a := AuthDB{configAuthDB: fileWithLogins}
 	a.initAuthDB()
 
 	return &a
 }
 
 func (a *AuthDB) Authenticate(login, passcode string) bool {
-	a.log.Debugf("login: %s, pwd: %s ", login, passcode)
+	log.Debugf("login: %s, pwd: %s ", login, passcode)
 	if pwd, ok := a.db[login]; ok {
 		if pwd == passcode {
 			return true
@@ -48,36 +50,15 @@ func (a *AuthDB) Authenticate(login, passcode string) bool {
 // Read JSON data and parsing it to AuthParams struct
 func (a *AuthDB) initAuthDB() {
 
-	buf := bytes.NewBuffer(nil)
-
-	fp, err := os.Open(a.configAuthDB)
-	if err != nil {
-		a.log.WithCaller(slf.CallerShort).Errorf("Could not read data from configureAuthFile: %s ", err.Error())
-		return
-	}
-	defer fp.Close()
-
-	_, err = io.Copy(buf, fp)
-	if err != nil {
-		a.log.WithCaller(slf.CallerShort).Errorf("Could not process data from configureAuthFile: %s ", err.Error())
-		return
-	}
-
-	authDataJSON := buf.Bytes()
-	//log.Println("authDataJSON: ", string(authDataJSON))
-
 	var authData ConfFile
-
-	err = json.Unmarshal(authDataJSON, &authData)
-	if err != nil {
-		a.log.WithCaller(slf.CallerShort).Errorf("Couldn't get auth params from configureAuthFile: %s. No auth database.", err.Error())
-	}
+	var defaultStruct = ConfFile{AuthData: []AuthParams{}}
+	utils.GetFromGlobalConf(&(authData), defaultStruct, "Auth Data")
 
 	dataMap := make(map[string]string)
 	for _, userAuth := range authData.AuthData {
 		if len(dataMap) != 0 {
 			if _, userExist := dataMap[userAuth.Login]; userExist {
-				a.log.Warn("User already exists in database; ignored")
+				log.Warn("User already exists in database; ignored")
 				continue
 			}
 		}
