@@ -50,9 +50,12 @@ func (a *AuthDB) Authenticate(login, passcode string) bool {
 // Read JSON data and parsing it to AuthParams struct
 func (a *AuthDB) initAuthDB() {
 
-	var authData ConfFile
-	var defaultStruct = ConfFile{AuthData: []AuthParams{}}
-	utils.GetFromGlobalConf(&(authData), defaultStruct, "Auth Data")
+	var authData = ConfFile{AuthData: []AuthParams{}}
+	utils.GetFromGlobalConf(&(authData), "Auth Data")
+
+	if len(authData.AuthData) == 0 {
+		log.Warn("Empty login/password database.")
+	}
 
 	dataMap := make(map[string]string)
 	for _, userAuth := range authData.AuthData {
@@ -62,7 +65,11 @@ func (a *AuthDB) initAuthDB() {
 				continue
 			}
 		}
-		dataMap[userAuth.Login] = userAuth.Passcode
+		if userAuth.Login == "" || userAuth.Passcode == "" {
+			log.Warnf("Empty/wrong field; igrored user=%s/password=%s.", userAuth.Login, userAuth.Passcode)
+		} else {
+			dataMap[userAuth.Login] = userAuth.Passcode
+		}
 	}
 	a.db = dataMap
 }
