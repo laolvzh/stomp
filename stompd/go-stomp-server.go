@@ -14,7 +14,6 @@ package main
 import _ "github.com/KristinaEtc/slflog"
 
 import (
-	"flag"
 	"net"
 
 	"github.com/KristinaEtc/utils"
@@ -38,19 +37,16 @@ type ConfFile struct {
 	Global GlobalConf
 }
 
-var defaulfGlobalOpt = ConfFile{Global: GlobalConf{ListenAddr: ":61614"}}
+var globalOpt = ConfFile{Global: GlobalConf{ListenAddr: ":61614"}}
 
 func main() {
 
-	flag.Parse()
-
-	var cf ConfFile
-	utils.GetFromGlobalConf(&cf, defaulfGlobalOpt, "GlobalConf")
+	utils.GetFromGlobalConf(&globalOpt, "GlobalConf")
 
 	// TODO: add Close method!!
 	//defer slflog.Close()
 
-	l, err := net.Listen("tcp", cf.Global.ListenAddr)
+	l, err := net.Listen("tcp", globalOpt.Global.ListenAddr)
 	if err != nil {
 		log.WithCaller(slf.CallerShort).Fatalf("Failed to listen: %s", err.Error())
 	}
