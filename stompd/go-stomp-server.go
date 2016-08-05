@@ -55,7 +55,6 @@ func main() {
 	a := auth.NewAuth(conf.GetConfigFilename())
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
-	log.WithCaller(slf.CallerShort).Info("test")
 	log.Error("-----------------------------------------------")
 	server.Serve(l, a)
 }

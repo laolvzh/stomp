@@ -17,12 +17,12 @@ demondir = "/etc/init"
 confdir = "/etc/${EXENAME}"
 
 CONF = "${EXENAME}.config"
-LOGCONF = "${EXENAME}.logconfig"
+#LOGCONF = "${EXENAME}.logconfig"
 DEMONF = "${EXENAME}.conf"
 
 GOFLAGS = "-o go-stomp-server \
-	  -ldflags \"-X github.com/KristinaEtc/slflog.configLogFile=${confdir}/${LOGCONF} \
-	  -X main.configFile=${confdir}/${CONF}\" "
+	  -ldflags \"-X github.com/KristinaEtc/config.configPath=${confdir}/${CONF} \
+	  -X github.com/KristinaEtc/config.CallerInfo=true\""
 
 all: build
 
@@ -42,7 +42,6 @@ makedir:
 configure:
 	@echo -n "Preparing config files... "
 	@cp ${CONF} ${confdir}/${CONF}
-	@cp ${LOGCONF} ${confdir}/
 	@cp ${DEMONF} ${demondir}
 	@echo "Done."
 
@@ -52,7 +51,7 @@ getlibs:
 
 build:
 	@echo -n "Start building a project... "
-	@${GOBUILD} $(shell echo $(GOFLAGS))"${EXENAME}.go"
+	${GOBUILD} $(shell echo $(GOFLAGS)) ${EXENAME}.go
 	@echo "Done."
 
 getbin:
