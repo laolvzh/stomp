@@ -16,7 +16,7 @@ import _ "github.com/KristinaEtc/slflog"
 import (
 	"net"
 
-	"github.com/KristinaEtc/utils"
+	conf "github.com/KristinaEtc/config"
 	"github.com/go-stomp/stomp/server"
 	"github.com/go-stomp/stomp/server/auth"
 	"github.com/ventu-io/slf"
@@ -41,7 +41,7 @@ var globalOpt = ConfFile{Global: GlobalConf{ListenAddr: ":61614"}}
 
 func main() {
 
-	utils.GetFromGlobalConf(&globalOpt, "GlobalConf")
+	conf.ReadGlobalConfig(&globalOpt, "GlobalConf")
 
 	// TODO: add Close method!!
 	//defer slflog.Close()
@@ -52,9 +52,10 @@ func main() {
 	}
 	defer func() { l.Close() }()
 
-	a := auth.NewAuth(utils.GetConfigFilename())
+	a := auth.NewAuth(conf.GetConfigFilename())
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
+	log.WithCaller(slf.CallerShort).Info("test")
 	log.Error("-----------------------------------------------")
 	server.Serve(l, a)
 }

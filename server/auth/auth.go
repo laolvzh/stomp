@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"github.com/KristinaEtc/utils"
+	conf "github.com/KristinaEtc/config"
 	"github.com/ventu-io/slf"
 )
 
@@ -51,7 +51,7 @@ func (a *AuthDB) Authenticate(login, passcode string) bool {
 func (a *AuthDB) initAuthDB() {
 
 	var authData = ConfFile{AuthData: []AuthParams{}}
-	utils.GetFromGlobalConf(&(authData), "Auth Data")
+	conf.ReadGlobalConfig(&(authData), "Auth Data")
 
 	if len(authData.AuthData) == 0 {
 		log.Warn("Empty login/password database.")
