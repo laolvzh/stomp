@@ -3,8 +3,8 @@ set -e
 autoconf
 ./configure --prefix=/
 make
-sudo checkinstall -D --pkgversion=0.6.1 --pkgname=go-stomp-server \
-      --maintainer="Kristina Kovalevskaya isitiriss@gmail.com" --autodoinst=no \
+fakeroot checkinstall --install=no --reset-uids=yes --fstrans=yes -D --pkgversion=0.6.1 --pkgname=go-stomp-server \
+      --maintainer="Kristina Kovalevskaya isitiriss@gmail.com" \
        --spec=ABOUT.md --provides="" --pkgsource=go-stomp-server
 
 RETVAL=$?
