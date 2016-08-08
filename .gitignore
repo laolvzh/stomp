@@ -22,6 +22,7 @@ _testmain.go
 *.exe
 
 .idea
+stompd/.vscode/
 
 # used for generating documentation during development
 doc.txt
