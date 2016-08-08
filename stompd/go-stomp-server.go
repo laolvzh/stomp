@@ -37,7 +37,7 @@ type ConfFile struct {
 	Global GlobalConf
 }
 
-var globalOpt = ConfFile{Global: GlobalConf{ListenAddr: localhost":61614"}}
+var globalOpt = ConfFile{Global: GlobalConf{ListenAddr: "localhost:61614"}}
 
 func main() {
 
