@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set +e
+echo "Creating a new user stomp"
+VERSION=
+
+#ret=false
+#getent passwd $1 >/dev/null 2>&1 && ret=true
+#if [ ${ret} == false] ; then sudo useradd -r -s /bin/nologin stomp ; fi
+
+
+CHROOTDIR="${BASEDIR}"
+
+# Create a group for our new service
+${BASEDIR}/usr/sbin/chroot ${CHROOTDIR} /usr/sbin/groupadd -g 80 httpd
+
+# Create a user for our new service
+${BASEDIR}/usr/sbin/chroot ${CHROOTDIR} /usr/sbin/useradd -u 80 -g 80 -d
+ /data/www -m -s /bin/sh -c "Webserver User" httpd
+
+sudo chown -R stomp:stomp "/var/log/go-stomp-server"
+sudo chown -R stomp:stomp "/etc/go-stomp-server/"
+sudo chmod -R 0766 "/var/log/go-stomp-server"
+sudo chmod -R 0766 "/etc/go-stomp-server"
