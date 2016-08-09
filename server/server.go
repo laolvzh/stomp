@@ -4,6 +4,7 @@ Package server contains a simple STOMP server implementation.
 package server
 
 import (
+	"github.com/ventu-io/slf"
 	"net"
 	"time"
 )
@@ -17,6 +18,9 @@ import (
 // Destinations that start with this prefix are considered to be queues.
 // Destinations that do not start with this prefix are considered to be topics.
 const QueuePrefix = "/queue"
+const pwdCurr string = "github.com/go-stomp/stomp/server"
+
+var log slf.StructuredLogger
 
 // Default server parameters.
 const (
@@ -28,6 +32,10 @@ const (
 	DefaultHeartBeat = time.Minute
 )
 
+func init() {
+	log = slf.WithContext(pwdCurr)
+}
+
 // Interface for authenticating STOMP clients.
 type Authenticator interface {
 	// Authenticate based on the given login and passcode, either of which might be nil.
@@ -37,6 +45,7 @@ type Authenticator interface {
 
 // A Server defines parameters for running a STOMP server.
 type Server struct {
+	Logger        slf.StructuredLogger
 	Addr          string        // TCP address to listen on, DefaultAddr if empty
 	Authenticator Authenticator // Authenticates login/passcodes. If nil no authentication is performed
 	QueueStorage  QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
@@ -44,15 +53,19 @@ type Server struct {
 }
 
 // ListenAndServe listens on the TCP network address addr and then calls Serve.
-func ListenAndServe(addr string) error {
-	s := &Server{Addr: addr}
+func ListenAndServe(addr string, a Authenticator) error {
+	s := &Server{Addr: addr, Authenticator: a}
+	defer log.Debug("ListenAndServe() function processed")
+
 	return s.ListenAndServe()
 }
 
 // Serve accepts incoming TCP connections on the listener l, creating a new
 // STOMP service thread for each connection.
-func Serve(l net.Listener) error {
-	s := &Server{}
+func Serve(l net.Listener, a Authenticator) error {
+	s := &Server{Authenticator: a, HeartBeat: 15*time.Second}
+	defer log.Debug("Serve() function processed")
+
 	return s.Serve(l)
 }
 

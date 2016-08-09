@@ -1,5 +1,7 @@
 package client
 
+import _ "github.com/KristinaEtc/slflog"
+
 import (
 	"regexp"
 	"sort"
@@ -8,6 +10,8 @@ import (
 
 	"github.com/go-stomp/stomp"
 	"github.com/go-stomp/stomp/frame"
+
+	"github.com/ventu-io/slf"
 )
 
 const (
@@ -16,6 +20,8 @@ const (
 	// will be rejected.
 	maxHeartBeat = 999999999
 )
+
+var log = slf.WithContext("stomp/server/client/frame.go")
 
 var (
 	// Regexp for heart-beat header value
@@ -115,5 +121,6 @@ func getHeartBeat(f *frame.Frame) (cx, cy int, err error) {
 		cx = 0
 		cy = 0
 	}
+	log.Infof("getHeartBeat: %s %d %d", f.Command, cx, cy )
 	return
 }

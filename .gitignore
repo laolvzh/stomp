@@ -22,6 +22,22 @@ _testmain.go
 *.exe
 
 .idea
+stompd/.vscode/
 
 # used for generating documentation during development
 doc.txt
+examples/client_test/client_test
+examples/client_test/client.log*
+stompd/stompd
+stompd/logs/*
+
+
+#deb-package
+stompd/Makefile
+stompd/autom4te.cache/
+stompd/backup-080120161814-pre-go-stomp-server.tgz
+stompd/config.status
+stompd/configure
+stompd/go-stomp-server_0.6-1_amd64.deb
+stomp/config.log
+stompd/go-stomp-server

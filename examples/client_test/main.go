@@ -56,7 +56,7 @@ func sendMessages() {
 	for i := 1; i <= *messageCount; i++ {
 		text := fmt.Sprintf("Message #%d", i)
 		err = conn.Send(*queueName, "text/plain",
-			[]byte(text), nil)
+			[]byte(text), nil...)
 		if err != nil {
 			println("failed to send to server", err)
 			return
@@ -86,6 +86,10 @@ func recvMessages(subscribed chan bool) {
 
 	for i := 1; i <= *messageCount; i++ {
 		msg := <-sub.C
+		if msg == nil {
+			fmt.Println("Error: nil message")
+			return
+		}
 		expectedText := fmt.Sprintf("Message #%d", i)
 		actualText := string(msg.Body)
 		if expectedText != actualText {

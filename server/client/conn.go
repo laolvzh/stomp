@@ -2,15 +2,16 @@ package client
 
 import (
 	"fmt"
+	"github.com/go-stomp/stomp"
+	"github.com/go-stomp/stomp/frame"
+	"github.com/ventu-io/slf"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"time"
-
-	"github.com/go-stomp/stomp"
-	"github.com/go-stomp/stomp/frame"
 )
+
+const pwdCurr string = "github.com/go-stomp/stomp/server/client"
 
 // Maximum number of pending frames allowed to a client.
 // before a disconnect occurs. If the client cannot keep
@@ -40,6 +41,7 @@ type Conn struct {
 	subList        *SubscriptionList                   // List of subscriptions requiring acknowledgement
 	subs           map[string]*Subscription            // All subscriptions, keyed by id
 	validator      stomp.Validator                     // For validating STOMP frames
+	log            slf.StructuredLogger
 }
 
 // Creates a new client connection. The config parameter contains
@@ -58,6 +60,7 @@ func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
 		txStore:        &txStore{},
 		subList:        NewSubscriptionList(),
 		subs:           make(map[string]*Subscription),
+		log:            slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": rw.RemoteAddr()}),
 	}
 	go c.readLoop()
 	go c.processLoop()
@@ -120,16 +123,20 @@ func (c *Conn) readLoop() {
 	for {
 		if readTimeout == time.Duration(0) {
 			// infinite timeout
-			c.rw.SetReadDeadline(time.Time{})
+			if expectingConnect {//connect frame timeout
+				c.rw.SetReadDeadline(time.Now().Add(3*time.Minute))
+			}else{
+				c.rw.SetReadDeadline(time.Time{})
+			}
 		} else {
-			c.rw.SetReadDeadline(time.Now().Add(readTimeout))
+			c.rw.SetReadDeadline(time.Now().Add(readTimeout*2))
 		}
 		f, err := reader.Read()
 		if err != nil {
 			if err == io.EOF {
-				log.Println("connection closed:", c.rw.RemoteAddr())
+				c.log.Infof("connection closed: %v", c.rw.RemoteAddr())
 			} else {
-				log.Println("read failed:", err, ":", c.rw.RemoteAddr())
+				c.log.Errorf("read failed: %s: %s,", err.Error(), c.rw.RemoteAddr())
 			}
 
 			// Close the read channel so that the processing loop will
@@ -142,8 +149,11 @@ func (c *Conn) readLoop() {
 
 		if f == nil {
 			// if the frame is nil, then it is a heartbeat
+			c.log.Debug("heart-beat received")
 			continue
 		}
+
+		c.log.Debugf("frame %v", f)
 
 		// If we are expecting a CONNECT or STOMP command, extract
 		// the heart-beat header and work out the read timeout.
@@ -151,6 +161,7 @@ func (c *Conn) readLoop() {
 		// some extent, but letting this go-routine work out its own
 		// read timeout means no synchronization is necessary.
 		if expectingConnect {
+			c.log.Debug("connect frame?")
 			// Expecting a CONNECT or STOMP command, get the heart-beat
 			cx, _, err := getHeartBeat(f)
 
@@ -188,6 +199,9 @@ func (c *Conn) processLoop() {
 
 	c.writer = frame.NewWriter(c.rw)
 	c.stateFunc = connecting
+
+	c.log.Debugf("processLoop: %s", c.writeTimeout)
+
 	for {
 		var timerChannel <-chan time.Time
 		var timer *time.Timer
@@ -219,6 +233,7 @@ func (c *Conn) processLoop() {
 			// write the frame to the client
 			err := c.writer.Write(f)
 			if err != nil {
+				c.log.Errorf("processLoop writeChannel: write error %v", err)
 				// if there is an error writing to
 				// the client, there is not much
 				// point trying to send an ERROR frame,
@@ -246,7 +261,7 @@ func (c *Conn) processLoop() {
 			if c.validator != nil {
 				err := c.validator.Validate(f)
 				if err != nil {
-					log.Println("validation failed for", f.Command, "frame", err)
+					c.log.Warnf("Validation failed for %s frame %s", f.Command, err.Error())
 					c.sendErrorImmediately(err, f)
 					return
 				}
@@ -311,6 +326,7 @@ func (c *Conn) processLoop() {
 
 		case _ = <-timerChannel:
 			// write a heart-beat
+			c.log.Debug("write heart-beat")
 			err := c.writer.Write(nil)
 			if err != nil {
 				return
@@ -470,14 +486,14 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	passcode, _ := f.Header.Contains(frame.Passcode)
 	if !c.config.Authenticate(login, passcode) {
 		// sleep to slow down a rogue client a little bit
-		log.Println("authentication failed")
+		c.log.Error("authentication failed")
 		time.Sleep(time.Second)
 		return authenticationFailed
 	}
 
 	c.version, err = determineVersion(f)
 	if err != nil {
-		log.Println("protocol version negotiation failed")
+		c.log.Error("protocol version negotiation failed")
 		return err
 	}
 	c.validator = stomp.NewValidator(c.version)
@@ -485,13 +501,13 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	if c.version == stomp.V10 {
 		// don't want to handle V1.0 at the moment
 		// TODO: get working for V1.0
-		log.Println("unsupported version", c.version)
+		c.log.Warnf("unsupported version %s", c.version)
 		return unsupportedVersion
 	}
 
 	cx, cy, err := getHeartBeat(f)
 	if err != nil {
-		log.Println("invalid heart-beat")
+		c.log.Warn("invalid heart-beat")
 		return err
 	}
 

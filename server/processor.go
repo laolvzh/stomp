@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log"
 	"net"
 	"strings"
 	"time"
@@ -114,7 +113,7 @@ func (proc *requestProcessor) Listen(l net.Listener) {
 				if max := 5 * time.Second; timeout > max {
 					timeout = max
 				}
-				log.Printf("stomp: Accept error: %v; retrying in %v", err, timeout)
+				log.Errorf("stomp: Accept error: %v; retrying in %v", err, timeout)
 				time.Sleep(timeout)
 				continue
 			}
@@ -126,7 +125,7 @@ func (proc *requestProcessor) Listen(l net.Listener) {
 		_ = client.NewConn(config, rw, proc.ch)
 	}
 	// This is no longer required for go 1.1
-	panic("not reached")
+	log.Panic("not reached")
 }
 
 type config struct {
