@@ -96,6 +96,23 @@ $(cat postinstall-pak)\n" > postinstall-pak
 
 sed -i '1i#!/bin/bash' postinstall-pak
 
+## Preremove
+
+# delete the first line of a file
+sed  -i '1d' preremove-pak
+
+sed -i 'PKGNAME=/d' preremove-pak
+
+sed -i '
+    N;
+    /^\n$/d;
+    P;
+    D
+' preremove-pak
+
+echo -e "\nPKGNAME=${PKGNAME}\n$(cat preremove-pak)\n" > preremove-pak
+sed -i '1i#!/bin/bash' preremove-pak
+
 
 
 
