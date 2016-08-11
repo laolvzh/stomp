@@ -1,7 +1,5 @@
 package client
 
-import _ "github.com/KristinaEtc/slflog"
-
 import (
 	"regexp"
 	"sort"
