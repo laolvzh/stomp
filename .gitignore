@@ -29,8 +29,7 @@ doc.txt
 examples/client_test/client_test
 examples/client_test/client.log*
 stompd/stompd
-stompd/logs/*
-
+stompd/log
 
 #deb-package
 stompd/debian/*.deb
