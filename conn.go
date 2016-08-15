@@ -15,6 +15,16 @@ import (
 // to avoid premature disconnections due to network latency.
 const DefaultHeartBeatError = 5 * time.Second
 
+type reconnectStr struct {
+	network   string
+	addr      string
+	op        [](func(*Conn) error)
+	queueName string
+}
+
+//recGlob's options was used for Reconnecting
+var recGlob reconnectStr
+
 // A Conn is a connection to a STOMP server. Create a Conn using either
 // the Dial or Connect function.
 type Conn struct {
@@ -54,6 +64,12 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 	// Add option to set host and make it the first option in list,
 	// so that if host has been explicitly specified it will override.
 	opts = append([](func(*Conn) error){ConnOpt.Host(host)}, opts...)
+
+	{
+		recGlob.addr = addr
+		recGlob.network = network
+		recGlob.op = opts
+	}
 
 	return Connect(c, opts...)
 }
@@ -249,6 +265,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 			if !ok {
 				err := newErrorMessage("connection closed")
 				sendError(channels, err)
+				c.MustDisconnect()
 				return
 			}
 
@@ -302,6 +319,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 			}
 			if !ok {
 				sendError(channels, errors.New("write channel closed"))
+				c.MustDisconnect()
 				return
 			}
 			if req.C != nil {
@@ -480,6 +498,8 @@ func (c *Conn) sendFrame(f *frame.Frame) error {
 func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Frame) error) (*Subscription, error) {
 	ch := make(chan *frame.Frame)
 
+	recGlob.queueName = destination
+
 	subscribeFrame := frame.New(frame.SUBSCRIBE,
 		frame.Destination, destination,
 		frame.Ack, ack.String())
@@ -605,4 +625,32 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*frame.Frame, error) 
 	}
 
 	return f, nil
+}
+
+// Reconnect is a function for reconnecting
+func (cOld *Conn) Reconnect() (*Conn, *Subscription, error) {
+	log.Print("Trying to reconnect... ")
+	time.Sleep(time.Second * 5)
+	c, err := net.Dial(recGlob.network, recGlob.addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	log.Println("\nDial done")
+
+	newConn, err := Connect(c, recGlob.op...)
+	if err != nil {
+		c.Close()
+		return nil, nil, err
+	}
+	log.Println("\nConnect done")
+
+	var sub *Subscription
+	if recGlob.queueName != "" {
+		sub, err = newConn.Subscribe(recGlob.queueName, AckAuto)
+		if err != nil {
+			return newConn, nil, err
+		}
+	}
+	log.Println("\nReconnecting done")
+	return newConn, sub, nil
 }
