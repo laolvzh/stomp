@@ -41,3 +41,4 @@ stompd/configure
 stompd/go-stomp-server_0.6-1_amd64.deb
 stomp/config.log
 stompd/go-stomp-server
+stompd/log/
