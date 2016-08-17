@@ -18,6 +18,7 @@ type Subscription struct {
 	conn        *Conn
 	ackMode     AckMode
 	completed   bool
+	opts        []func(*frame.Frame) error
 }
 
 // BUG(jpj): If the client does not read messages from the Subscription.C
