@@ -2,7 +2,7 @@ package stomp
 
 import (
 	"fmt"
-	"log"
+	//"log"
 
 	"github.com/go-stomp/stomp/frame"
 )
@@ -64,17 +64,23 @@ func (s *Subscription) Unsubscribe() error {
 // method: many callers will prefer to read from the channel C
 // directly.
 func (s *Subscription) Read() (*Message, error) {
-	if s.completed {
-		return nil, ErrCompletedSubscription
+	for {
+		if s.completed {
+			continue
+			//return nil, ErrCompletedSubscription
+		}
+		msg, ok := <-s.C
+		if !ok {
+			continue
+			//return nil, ErrCompletedSubscription
+		}
+		if msg.Err != nil {
+			continue
+			//return nil, msg.Err
+		}
+		return msg, nil
 	}
-	msg, ok := <-s.C
-	if !ok {
-		return nil, ErrCompletedSubscription
-	}
-	if msg.Err != nil {
-		return nil, msg.Err
-	}
-	return msg, nil
+
 }
 
 func (s *Subscription) readLoop(ch chan *frame.Frame) {
@@ -103,12 +109,13 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 				s.C <- msg
 			}
 		} else if f.Command == frame.ERROR {
+			log.Warn("subs: f.Command == frame.ERROR")
 			message, _ := f.Header.Contains(frame.Message)
 			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
 				s.id,
 				s.destination,
 				message)
-			log.Println(text)
+			log.Debugf("subs: test=%s", text)
 			contentType := f.Header.Get(frame.ContentType)
 			msg := &Message{
 				Err: &Error{
