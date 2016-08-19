@@ -46,6 +46,7 @@ type SubStr struct {
 	opts        []func(*frame.Frame) error
 	id          string
 	reconn      bool
+	flagChanged string
 }
 
 type reconnectStr struct {
@@ -235,9 +236,9 @@ func readLoop(c *Conn, reader *frame.Reader) {
 		f, err := reader.Read()
 		if err != nil {
 			log.Debugf("f, err := reader.Read(): %s", err.Error())
-			//if c.closed == false {
-			close(c.readCh)
-			//	}
+			if c.closed == false {
+				close(c.readCh)
+			}
 			log.Debug("readLoop: c.closed = true")
 			c.closed = true
 
@@ -307,7 +308,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 						writeTimeoutChannel = nil
 						continue
 					} else {
-						break
+						return
 					}
 				}
 
@@ -617,6 +618,7 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 		opts:        opts,
 		destination: destination,
 		id:          id,
+		flagChanged: "new",
 	}
 
 	//if c.isRec == false {
@@ -659,7 +661,7 @@ func (c *Conn) SubscribeNew(destination string, ack AckMode, id string, opts ...
 	//if !ok {
 
 	subscribeFrame.Header.Add(frame.Id, id)
-	//}
+	//	}
 
 	request := writeRequest{
 		Frame: subscribeFrame,
@@ -679,6 +681,7 @@ func (c *Conn) SubscribeNew(destination string, ack AckMode, id string, opts ...
 		opts:        opts,
 		destination: destination,
 		id:          id,
+		flagChanged: "new",
 	}
 
 	for _, s := range c.subs {
@@ -783,11 +786,15 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*frame.Frame, error) 
 
 // Reconnect is a function for reconnecting
 func reconnect() error {
+
 	log.Error("recconnect(): Trying to reconnect... ")
 	//time.Sleep(time.Second * 5)
 
 	var err error
 	var i = 0
+
+	//log.Debugf("(len(allConns)=%d", len(allConns))
+
 	for _, currConn := range allConns {
 		//fmt.Printf("i=%d\n", i)
 		i++
@@ -824,12 +831,14 @@ func reconnect() error {
 
 		for _, currSub := range currConn.subs {
 			log.Debugf("reconnect: id=%s", currSub.id)
+			currSub.subPtr.Unsubscribe()
 
 			currSub.subPtr, err = currConn.SubscribeNew(currSub.destination, currSub.ackMode, currSub.id, currSub.opts...)
 			if err != nil {
 				log.Errorf("reconnect(): subscr err - %s", err.Error())
 				return err
 			}
+			//	log.Debugf("flagChanged=%s", currSub.flagChanged)
 		}
 
 	}
