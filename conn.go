@@ -64,9 +64,19 @@ type writeRequest struct {
 // STOMP server is specified by network and addr. STOMP protocol
 // options can be specified in opts.
 func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
-	cnet, err := net.Dial(network, addr)
-	if err != nil {
-		return nil, err
+
+	var cnet net.Conn
+	for {
+		var err error
+		cnet, err = net.Dial(network, addr)
+		if err == nil {
+			break
+		} else {
+			log.Error("Reconnecting...")
+			time.Sleep(time.Second * 1)
+			//return nil, err
+			continue
+		}
 	}
 
 	host, _, err := net.SplitHostPort(cnet.RemoteAddr().String())
