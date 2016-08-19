@@ -35,7 +35,7 @@ type Conn struct {
 	writeTimeout time.Duration
 	closed       bool
 	options      *connOptions
-	subs         []*SubStr
+	subs         []**SubStr
 	rec          reconnectStr
 }
 
@@ -618,23 +618,30 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 		opts:        opts,
 		destination: destination,
 		id:          id,
-		flagChanged: "new",
+		flagChanged: "old",
 	}
 
 	//if c.isRec == false {
-	c.subs = append(c.subs, sub)
+	c.subs = append(c.subs, &sub)
 	//	} else {
 
 	//}
 	//log.Debugf("len(c.subs)=%d\n", (len(c.subs)))
 
-	go sub.subPtr.readLoop(ch)
+	for _, s := range c.subs {
+		if (*s).id == id {
+			log.Debug("i found s return")
+			go (*s).subPtr.readLoop(ch)
 
-	c.writeCh <- request
-	return sub.subPtr, nil
+			c.writeCh <- request
+			return (*s).subPtr, nil
+		}
+	}
+	log.Debug("0_0\n")
+	return nil, nil
 }
 
-func (c *Conn) SubscribeNew(destination string, ack AckMode, id string, opts ...func(*frame.Frame) error) (*Subscription, error) {
+func (c *Conn) SubscribeNew(destination string, ack AckMode, id string, opts ...func(*frame.Frame) error) {
 	ch := make(chan *frame.Frame)
 
 	//recGlob.queueName = destination
@@ -645,15 +652,15 @@ func (c *Conn) SubscribeNew(destination string, ack AckMode, id string, opts ...
 		frame.Destination, destination,
 		frame.Ack, ack.String())
 
-	for _, opt := range opts {
-		if opt == nil {
-			return nil, ErrNilOption
-		}
-		err := opt(subscribeFrame)
+	//for _, opt := range opts {
+	/*if opt == nil {
+		return nil, ErrNilOption
+	}*/
+	/*err := opt(subscribeFrame)
 		if err != nil {
 			return nil, err
 		}
-	}
+	}*/
 
 	// If the option functions have not specified the "id" header entry,
 	// create one.
@@ -668,33 +675,27 @@ func (c *Conn) SubscribeNew(destination string, ack AckMode, id string, opts ...
 		C:     ch,
 	}
 
-	sub := &SubStr{
-		subPtr: &Subscription{
+	/*	sub := Subscription{
 			id:          id,
 			destination: destination,
 			conn:        c,
 			ackMode:     ack,
 			C:           make(chan *Message, 16),
 			opts:        opts,
-		},
-		ackMode:     ack,
-		opts:        opts,
-		destination: destination,
-		id:          id,
-		flagChanged: "new",
-	}
-
-	for _, s := range c.subs {
-		if s.id == id {
-			log.Debug("i found s")
-			s = sub
+			completed:   false,
 		}
-	}
 
-	go sub.subPtr.readLoop(ch)
+		for _, s := range c.subs {
+			if (*s).id == id {
+				log.Debug("i found s")
+				(*s).subPtr = &sub
+			}
+		}
+	*/
+	//go sub.subPtr.readLoop(ch)
 
 	c.writeCh <- request
-	return sub.subPtr, nil
+	//return &sub, nil
 }
 
 // Ack acknowledges a message received from the STOMP server.
@@ -786,7 +787,6 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*frame.Frame, error) 
 
 // Reconnect is a function for reconnecting
 func reconnect() error {
-
 	log.Error("recconnect(): Trying to reconnect... ")
 	//time.Sleep(time.Second * 5)
 
@@ -830,14 +830,40 @@ func reconnect() error {
 		//log.Debugf("(len(currConn.subs)=%d", len(currConn.subs))
 
 		for _, currSub := range currConn.subs {
-			log.Debugf("reconnect: id=%s", currSub.id)
-			currSub.subPtr.Unsubscribe()
+			log.Debugf("reconnect: id=%s", (*currSub).id)
+			(*currSub).subPtr.Unsubscribe()
 
-			currSub.subPtr, err = currConn.SubscribeNew(currSub.destination, currSub.ackMode, currSub.id, currSub.opts...)
+			/*(*currSub).subPtr, err = currConn.SubscribeNew((*currSub).destination, (*currSub).ackMode, (*currSub).id, (*currSub).opts...)
 			if err != nil {
 				log.Errorf("reconnect(): subscr err - %s", err.Error())
 				return err
+			}*/
+
+			ch := make(chan *frame.Frame)
+
+			log.Debugf("subNew: id=%s", (*currSub).id)
+
+			subscribeFrame := frame.New(frame.SUBSCRIBE,
+				frame.Destination, (*currSub).destination,
+				frame.Ack, ((*currSub).ackMode).String())
+
+			subscribeFrame.Header.Add(frame.Id, (*currSub).id)
+			//	}
+
+			request := writeRequest{
+				Frame: subscribeFrame,
+				C:     ch,
 			}
+			go (*currSub).subPtr.readLoop(ch)
+			currConn.writeCh <- request
+
+			//currConn.SubscribeNew((*currSub).destination, (*currSub).ackMode, (*currSub).id, (*currSub).opts...)
+
+			(*currSub).subPtr.completed = false
+			(*currSub).subPtr.conn = currConn
+			(*currSub).subPtr.C = make(chan *Message, 16)
+			log.Debugf("rec %v\n", &(*currSub).subPtr)
+			log.Debugf("rec %v\n", (*currSub).subPtr)
 			//	log.Debugf("flagChanged=%s", currSub.flagChanged)
 		}
 

@@ -2,6 +2,7 @@ package stomp
 
 import (
 	"fmt"
+	"time"
 	//"log"
 
 	"github.com/go-stomp/stomp/frame"
@@ -65,18 +66,24 @@ func (s *Subscription) Unsubscribe() error {
 // directly.
 func (s *Subscription) Read() (*Message, error) {
 	for {
+
+		log.Debugf("sub %v\n", s)
 		if s.completed {
-			continue
-			//return nil, ErrCompletedSubscription
+			time.Sleep(time.Second)
+			log.Debug("rrr")
+			//continue
+			//log.Debug("rrr")
+			return nil, ErrCompletedSubscription
 		}
 		msg, ok := <-s.C
 		if !ok {
-			continue
-			//return nil, ErrCompletedSubscription
+			//continue
+			log.Debug("here i know")
+			return nil, ErrCompletedSubscription
 		}
 		if msg.Err != nil {
-			continue
-			//return nil, msg.Err
+			//continue
+			return nil, msg.Err
 		}
 		return msg, nil
 	}
@@ -86,13 +93,18 @@ func (s *Subscription) Read() (*Message, error) {
 func (s *Subscription) readLoop(ch chan *frame.Frame) {
 	for {
 		if s.completed {
+			log.Debug("readloop(): s.completed ")
 			return
 		}
 
 		f, ok := <-ch
 		if !ok {
+			log.Debug("readloop(): !ok ")
 			return
+			//continue
 		}
+
+		log.Debug("readloop()")
 
 		if f.Command == frame.MESSAGE {
 			destination := f.Header.Get(frame.Destination)
