@@ -14,8 +14,6 @@ func init() {
 }
 
 type AuthDB struct {
-	configAuthDB string
-
 	db map[string]string // Map with login in key and password in value for authentification field
 }
 
@@ -29,8 +27,8 @@ type ConfFile struct {
 	AuthData []AuthParams
 }
 
-func NewAuth(fileWithLogins string) *AuthDB {
-	a := AuthDB{configAuthDB: fileWithLogins}
+func NewAuth() *AuthDB {
+	a := AuthDB{}
 	a.initAuthDB()
 
 	return &a

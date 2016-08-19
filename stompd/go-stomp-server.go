@@ -52,7 +52,7 @@ func main() {
 	}
 	defer func() { l.Close() }()
 
-	a := auth.NewAuth(conf.GetConfigFilename())
+	a := auth.NewAuth()
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
 	log.Error("-----------------------------------------------")
