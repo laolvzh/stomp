@@ -235,11 +235,11 @@ func readLoop(c *Conn, reader *frame.Reader) {
 	for {
 		f, err := reader.Read()
 		if err != nil {
-			log.Debugf("f, err := reader.Read(): %s", err.Error())
+			//log.Debugf("f, err := reader.Read(): %s", err.Error())
 			if c.closed == false {
 				close(c.readCh)
 			}
-			log.Debug("readLoop: c.closed = true")
+			//log.Debug("readLoop: c.closed = true")
 			c.closed = true
 
 			return
@@ -295,13 +295,13 @@ func processLoop(c *Conn, writer *frame.Writer) {
 
 			if !ok {
 				err := newErrorMessage("connection closed")
-				log.Debug("!ok readCh")
+				//log.Debug("!ok readCh")
 				c.closed = true
 				sendError(channels, err)
 				for {
-					err := reconnect()
+					err := c.reconnect()
 					if err != nil {
-						log.Errorf("read ch(): Error reconnecting: %s", err.Error())
+						//log.Errorf("read ch(): Error reconnecting: %s", err.Error())
 						time.Sleep(time.Second * 1)
 						//writeTimer.Stop()
 						writeTimer = nil
@@ -352,7 +352,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 					close(ch)
 				}
 
-				log.Warn("readCh frame.ERROR: c.closed = true")
+				//log.Warn("readCh frame.ERROR: c.closed = true")
 
 				c.closed = true
 				c.conn.Close()
@@ -377,7 +377,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 				writeTimeoutChannel = nil
 			}
 			if !ok {
-				log.Warn("writeCh(): !ok")
+				//log.Warn("writeCh(): !ok")
 				sendError(channels, errors.New("write channel closed"))
 				//c.MustDisconnect()
 				c.closed = true
@@ -393,20 +393,20 @@ func processLoop(c *Conn, writer *frame.Writer) {
 				return
 			}
 			if req.C != nil {
-				log.Warn("req.C != nil")
+				//log.Warn("req.C != nil")
 				if receipt, ok := req.Frame.Header.Contains(frame.Receipt); ok {
 					// remember the channel for this receipt
 					channels[receipt] = req.C
 				}
 			} else {
-				log.Warn("req.C = nil")
+				//log.Warn("req.C = nil")
 			}
 
 			switch req.Frame.Command {
 			case frame.SUBSCRIBE:
-				log.Debug("subscribing")
+				//log.Debug("subscribing")
 				id, _ := req.Frame.Header.Contains(frame.Id)
-				log.Debugf("frame.SUBSCRIBE: id=%s\n", id)
+				//	log.Debugf("frame.SUBSCRIBE: id=%s\n", id)
 				channels[id] = req.C
 			case frame.UNSUBSCRIBE:
 				id, _ := req.Frame.Header.Contains(frame.Id)
@@ -419,7 +419,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 			// frame to send
 			err := writer.Write(req.Frame)
 			if err != nil {
-				log.Debug("err := writer.Write(req.Frame); err != nil")
+				//	log.Debug("err := writer.Write(req.Frame); err != nil")
 				sendError(channels, err)
 				return
 			}
@@ -630,14 +630,14 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 
 	for _, s := range c.subs {
 		if (*s).id == id {
-			log.Debug("i found s return")
+			//	log.Debug("i found s return")
 			go (*s).subPtr.readLoop(ch)
 
 			c.writeCh <- request
 			return (*s).subPtr, nil
 		}
 	}
-	log.Debug("0_0\n")
+	//log.Debug("0_0\n")
 	return nil, nil
 }
 
@@ -646,7 +646,7 @@ func (c *Conn) SubscribeNew(destination string, ack AckMode, id string, opts ...
 
 	//recGlob.queueName = destination
 
-	log.Debugf("subNew: id=%s", id)
+	//log.Debugf("subNew: id=%s", id)
 
 	subscribeFrame := frame.New(frame.SUBSCRIBE,
 		frame.Destination, destination,
@@ -786,7 +786,7 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*frame.Frame, error) 
 }
 
 // Reconnect is a function for reconnecting
-func reconnect() error {
+func (c *Conn) reconnect() error {
 	log.Error("recconnect(): Trying to reconnect... ")
 	//time.Sleep(time.Second * 5)
 
@@ -795,77 +795,78 @@ func reconnect() error {
 
 	//log.Debugf("(len(allConns)=%d", len(allConns))
 
-	for _, currConn := range allConns {
-		//fmt.Printf("i=%d\n", i)
-		i++
+	//for _, currConn := range allConns {
+	currConn := c
+	//fmt.Printf("i=%d\n", i)
+	i++
 
-		if currConn.closed != true {
-			log.Warn("currConn.closed != true")
-			currConn.conn.Close()
-		}
-		currConn.conn, err = net.Dial(currConn.rec.network, currConn.rec.addr)
-		if err != nil {
-			//return nil, err
-			//log.Errorf("reconnect(): Dial err - %s", err.Error())
-			time.Sleep(time.Second * 2)
-			return err
-		}
+	if currConn.closed != true {
+		//log.Warn("currConn.closed != true")
+		currConn.conn.Close()
+	}
+	currConn.conn, err = net.Dial(currConn.rec.network, currConn.rec.addr)
+	if err != nil {
+		//return nil, err
+		//log.Errorf("reconnect(): Dial err - %s", err.Error())
+		time.Sleep(time.Second * 2)
+		return err
+	}
 
-		currConn.readCh = make(chan *frame.Frame, 8)
-		currConn.writeCh = make(chan writeRequest, 8)
+	currConn.readCh = make(chan *frame.Frame, 8)
+	currConn.writeCh = make(chan writeRequest, 8)
 
-		currConn, err = Connect(currConn)
-		//log.Debug("recon(): c.closed = false")
-		currConn.closed = false
-		if err != nil {
-			//return nil, err
-			log.Errorf("reconnect(): connect err - %s", err.Error())
-			//time.Sleep(time.Second * 1)
-			return err
-		}
-
-		log.Debug("connection done")
-
+	currConn, err = Connect(currConn)
+	//log.Debug("recon(): c.closed = false")
+	currConn.closed = false
+	if err != nil {
+		//return nil, err
+		//log.Errorf("reconnect(): connect err - %s", err.Error())
 		//time.Sleep(time.Second * 1)
-		//log.Debugf("(len(currConn.subs)=%d", len(currConn.subs))
+		return err
+	}
 
-		for _, currSub := range currConn.subs {
-			log.Debugf("reconnect: id=%s", (*currSub).id)
-			(*currSub).subPtr.Unsubscribe()
+	//log.Debug("connection done")
 
-			/*(*currSub).subPtr, err = currConn.SubscribeNew((*currSub).destination, (*currSub).ackMode, (*currSub).id, (*currSub).opts...)
-			if err != nil {
-				log.Errorf("reconnect(): subscr err - %s", err.Error())
-				return err
-			}*/
+	//time.Sleep(time.Second * 1)
+	//log.Debugf("(len(currConn.subs)=%d", len(currConn.subs))
 
-			ch := make(chan *frame.Frame)
+	for _, currSub := range currConn.subs {
+		//	log.Debugf("reconnect: id=%s", (*currSub).id)
+		(*currSub).subPtr.Unsubscribe()
 
-			log.Debugf("subNew: id=%s", (*currSub).id)
+		/*(*currSub).subPtr, err = currConn.SubscribeNew((*currSub).destination, (*currSub).ackMode, (*currSub).id, (*currSub).opts...)
+		if err != nil {
+			log.Errorf("reconnect(): subscr err - %s", err.Error())
+			return err
+		}*/
 
-			subscribeFrame := frame.New(frame.SUBSCRIBE,
-				frame.Destination, (*currSub).destination,
-				frame.Ack, ((*currSub).ackMode).String())
+		ch := make(chan *frame.Frame)
 
-			subscribeFrame.Header.Add(frame.Id, (*currSub).id)
-			//	}
+		//	log.Debugf("subNew: id=%s", (*currSub).id)
 
-			request := writeRequest{
-				Frame: subscribeFrame,
-				C:     ch,
-			}
-			go (*currSub).subPtr.readLoop(ch)
-			currConn.writeCh <- request
+		subscribeFrame := frame.New(frame.SUBSCRIBE,
+			frame.Destination, (*currSub).destination,
+			frame.Ack, ((*currSub).ackMode).String())
 
-			//currConn.SubscribeNew((*currSub).destination, (*currSub).ackMode, (*currSub).id, (*currSub).opts...)
+		subscribeFrame.Header.Add(frame.Id, (*currSub).id)
+		//	}
 
-			(*currSub).subPtr.completed = false
-			(*currSub).subPtr.conn = currConn
-			(*currSub).subPtr.C = make(chan *Message, 16)
-			log.Debugf("rec %v\n", &(*currSub).subPtr)
-			log.Debugf("rec %v\n", (*currSub).subPtr)
-			//	log.Debugf("flagChanged=%s", currSub.flagChanged)
+		request := writeRequest{
+			Frame: subscribeFrame,
+			C:     ch,
 		}
+		go (*currSub).subPtr.readLoop(ch)
+		currConn.writeCh <- request
+
+		//currConn.SubscribeNew((*currSub).destination, (*currSub).ackMode, (*currSub).id, (*currSub).opts...)
+
+		(*currSub).subPtr.completed = false
+		(*currSub).subPtr.conn = currConn
+		(*currSub).subPtr.C = make(chan *Message, 16)
+		//log.Debugf("rec %v\n", &(*currSub).subPtr)
+		//	log.Debugf("rec %v\n", (*currSub).subPtr)
+		//	log.Debugf("flagChanged=%s", currSub.flagChanged)
+		//	}
 
 	}
 	log.Debug("recconnect() done ")

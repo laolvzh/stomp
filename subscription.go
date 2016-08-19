@@ -67,18 +67,15 @@ func (s *Subscription) Unsubscribe() error {
 func (s *Subscription) Read() (*Message, error) {
 	for {
 
-		log.Debugf("sub %v\n", s)
+		//log.Debugf("sub %v\n", s)
 		if s.completed {
 			time.Sleep(time.Second)
-			log.Debug("rrr")
 			//continue
-			//log.Debug("rrr")
 			return nil, ErrCompletedSubscription
 		}
 		msg, ok := <-s.C
 		if !ok {
 			//continue
-			log.Debug("here i know")
 			return nil, ErrCompletedSubscription
 		}
 		if msg.Err != nil {
@@ -104,7 +101,7 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 			//continue
 		}
 
-		log.Debug("readloop()")
+		//log.Debug("readloop()")
 
 		if f.Command == frame.MESSAGE {
 			destination := f.Header.Get(frame.Destination)
@@ -121,7 +118,7 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 				s.C <- msg
 			}
 		} else if f.Command == frame.ERROR {
-			log.Warn("subs: f.Command == frame.ERROR")
+			//log.Warn("subs: f.Command == frame.ERROR")
 			message, _ := f.Header.Contains(frame.Message)
 			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
 				s.id,
