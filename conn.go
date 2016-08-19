@@ -796,15 +796,14 @@ func (c *Conn) reconnect() error {
 	//log.Debugf("(len(allConns)=%d", len(allConns))
 
 	//for _, currConn := range allConns {
-	currConn := c
 	//fmt.Printf("i=%d\n", i)
 	i++
 
-	if currConn.closed != true {
+	if c.closed != true {
 		//log.Warn("currConn.closed != true")
-		currConn.conn.Close()
+		c.conn.Close()
 	}
-	currConn.conn, err = net.Dial(currConn.rec.network, currConn.rec.addr)
+	c.conn, err = net.Dial(c.rec.network, c.rec.addr)
 	if err != nil {
 		//return nil, err
 		//log.Errorf("reconnect(): Dial err - %s", err.Error())
@@ -812,12 +811,12 @@ func (c *Conn) reconnect() error {
 		return err
 	}
 
-	currConn.readCh = make(chan *frame.Frame, 8)
-	currConn.writeCh = make(chan writeRequest, 8)
+	c.readCh = make(chan *frame.Frame, 8)
+	c.writeCh = make(chan writeRequest, 8)
 
-	currConn, err = Connect(currConn)
+	c, err = Connect(c)
 	//log.Debug("recon(): c.closed = false")
-	currConn.closed = false
+	c.closed = false
 	if err != nil {
 		//return nil, err
 		//log.Errorf("reconnect(): connect err - %s", err.Error())
@@ -830,7 +829,7 @@ func (c *Conn) reconnect() error {
 	//time.Sleep(time.Second * 1)
 	//log.Debugf("(len(currConn.subs)=%d", len(currConn.subs))
 
-	for _, currSub := range currConn.subs {
+	for _, currSub := range c.subs {
 		//	log.Debugf("reconnect: id=%s", (*currSub).id)
 		(*currSub).subPtr.Unsubscribe()
 
@@ -856,12 +855,12 @@ func (c *Conn) reconnect() error {
 			C:     ch,
 		}
 		go (*currSub).subPtr.readLoop(ch)
-		currConn.writeCh <- request
+		c.writeCh <- request
 
 		//currConn.SubscribeNew((*currSub).destination, (*currSub).ackMode, (*currSub).id, (*currSub).opts...)
 
 		(*currSub).subPtr.completed = false
-		(*currSub).subPtr.conn = currConn
+		(*currSub).subPtr.conn = c
 		(*currSub).subPtr.C = make(chan *Message, 16)
 		//log.Debugf("rec %v\n", &(*currSub).subPtr)
 		//	log.Debugf("rec %v\n", (*currSub).subPtr)
