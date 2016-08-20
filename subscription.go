@@ -2,7 +2,8 @@ package stomp
 
 import (
 	"fmt"
-	"log"
+	"time"
+	//"log"
 
 	"github.com/go-stomp/stomp/frame"
 )
@@ -18,6 +19,7 @@ type Subscription struct {
 	conn        *Conn
 	ackMode     AckMode
 	completed   bool
+	opts        []func(*frame.Frame) error
 }
 
 // BUG(jpj): If the client does not read messages from the Subscription.C
@@ -63,29 +65,43 @@ func (s *Subscription) Unsubscribe() error {
 // method: many callers will prefer to read from the channel C
 // directly.
 func (s *Subscription) Read() (*Message, error) {
-	if s.completed {
-		return nil, ErrCompletedSubscription
+	for {
+
+		//log.Debugf("sub %v\n", s)
+		if s.completed {
+			time.Sleep(time.Second)
+			//continue
+			return nil, ErrCompletedSubscription
+		}
+		msg, ok := <-s.C
+		if !ok {
+			//continue
+			return nil, ErrCompletedSubscription
+		}
+		if msg.Err != nil {
+			//continue
+			return nil, msg.Err
+		}
+		return msg, nil
 	}
-	msg, ok := <-s.C
-	if !ok {
-		return nil, ErrCompletedSubscription
-	}
-	if msg.Err != nil {
-		return nil, msg.Err
-	}
-	return msg, nil
+
 }
 
 func (s *Subscription) readLoop(ch chan *frame.Frame) {
 	for {
 		if s.completed {
+			log.Debug("readloop(): s.completed ")
 			return
 		}
 
 		f, ok := <-ch
 		if !ok {
+			log.Debug("readloop(): !ok ")
 			return
+			//continue
 		}
+
+		//log.Debug("readloop()")
 
 		if f.Command == frame.MESSAGE {
 			destination := f.Header.Get(frame.Destination)
@@ -102,12 +118,13 @@ func (s *Subscription) readLoop(ch chan *frame.Frame) {
 				s.C <- msg
 			}
 		} else if f.Command == frame.ERROR {
+			//log.Warn("subs: f.Command == frame.ERROR")
 			message, _ := f.Header.Contains(frame.Message)
 			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
 				s.id,
 				s.destination,
 				message)
-			log.Println(text)
+			log.Debugf("subs: test=%s", text)
 			contentType := f.Header.Get(frame.ContentType)
 			msg := &Message{
 				Err: &Error{
