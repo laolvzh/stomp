@@ -2,7 +2,6 @@ package stomp
 
 import (
 	"fmt"
-	"time"
 	//"log"
 
 	"github.com/go-stomp/stomp/frame"
@@ -13,13 +12,15 @@ import (
 //
 // Once a client has subscribed, it can receive messages from the C channel.
 type Subscription struct {
-	C           chan *Message
-	id          string
-	destination string
-	conn        *Conn
-	ackMode     AckMode
-	completed   bool
-	opts        []func(*frame.Frame) error
+	C              chan *Message
+	id             string
+	destination    string
+	conn           *Conn
+	ackMode        AckMode
+	completed      bool
+	opts           []func(*frame.Frame) error
+	controlChannel chan func()
+	frameCh        chan *frame.Frame
 }
 
 // BUG(jpj): If the client does not read messages from the Subscription.C
@@ -50,99 +51,86 @@ func (s *Subscription) Active() bool {
 }
 
 // Unsubscribes and closes the channel C.
-func (s *Subscription) Unsubscribe() error {
-	if s.completed {
-		return ErrCompletedSubscription
+func (s *Subscription) Unsubscribe() {
+
+	s.controlChannel <- func() {
+		f := frame.New(frame.UNSUBSCRIBE, frame.Id, s.id)
+		s.conn.sendFrame(f)
+		s.completed = true
+		close(s.C)
 	}
-	f := frame.New(frame.UNSUBSCRIBE, frame.Id, s.id)
-	s.conn.sendFrame(f)
-	s.completed = true
-	close(s.C)
-	return nil
 }
 
 // Read a message from the subscription. This is a convenience
 // method: many callers will prefer to read from the channel C
 // directly.
 func (s *Subscription) Read() (*Message, error) {
-	for {
-
-		//log.Debugf("sub %v\n", s)
-		if s.completed {
-			time.Sleep(time.Second)
-			//continue
-			return nil, ErrCompletedSubscription
-		}
-		msg, ok := <-s.C
-		if !ok {
-			//continue
-			return nil, ErrCompletedSubscription
-		}
-		if msg.Err != nil {
-			//continue
-			return nil, msg.Err
-		}
-		return msg, nil
+	msg, ok := <-s.C
+	if !ok {
+		//continue
+		return nil, ErrCompletedSubscription
 	}
-
+	if msg.Err != nil {
+		//continue
+		return nil, msg.Err
+	}
+	//continue
+	return msg, nil
 }
 
 func (s *Subscription) readLoop(ch chan *frame.Frame) {
 	for {
-		if s.completed {
-			log.Debug("readloop(): s.completed ")
-			return
-		}
 
-		f, ok := <-ch
-		if !ok {
-			log.Debug("readloop(): !ok ")
-			return
-			//continue
-		}
+		select {
+		case f := <-s.controlChannel:
+			f()
+			continue
 
-		//log.Debug("readloop()")
+		case f, ok := <-ch:
+			if !ok {
+				continue
+			}
 
-		if f.Command == frame.MESSAGE {
-			destination := f.Header.Get(frame.Destination)
-			contentType := f.Header.Get(frame.ContentType)
-			msg := &Message{
-				Destination:  destination,
-				ContentType:  contentType,
-				Conn:         s.conn,
-				Subscription: s,
-				Header:       f.Header,
-				Body:         f.Body,
+			if f.Command == frame.MESSAGE {
+				destination := f.Header.Get(frame.Destination)
+				contentType := f.Header.Get(frame.ContentType)
+				msg := &Message{
+					Destination:  destination,
+					ContentType:  contentType,
+					Conn:         s.conn,
+					Subscription: s,
+					Header:       f.Header,
+					Body:         f.Body,
+				}
+				if !s.completed {
+					s.C <- msg
+				}
+			} else if f.Command == frame.ERROR {
+				//log.Warn("subs: f.Command == frame.ERROR")
+				message, _ := f.Header.Contains(frame.Message)
+				text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
+					s.id,
+					s.destination,
+					message)
+				log.Debugf("subs: test=%s", text)
+				contentType := f.Header.Get(frame.ContentType)
+				msg := &Message{
+					Err: &Error{
+						Message: f.Header.Get(frame.Message),
+						Frame:   f,
+					},
+					ContentType:  contentType,
+					Conn:         s.conn,
+					Subscription: s,
+					Header:       f.Header,
+					Body:         f.Body,
+				}
+				if !s.completed {
+					s.C <- msg
+				}
+				//s.completed = true
+				continue
 			}
-			if !s.completed {
-				s.C <- msg
-			}
-		} else if f.Command == frame.ERROR {
-			//log.Warn("subs: f.Command == frame.ERROR")
-			message, _ := f.Header.Contains(frame.Message)
-			text := fmt.Sprintf("Subscription %s: %s: ERROR message:%s",
-				s.id,
-				s.destination,
-				message)
-			log.Debugf("subs: test=%s", text)
-			contentType := f.Header.Get(frame.ContentType)
-			msg := &Message{
-				Err: &Error{
-					Message: f.Header.Get(frame.Message),
-					Frame:   f,
-				},
-				ContentType:  contentType,
-				Conn:         s.conn,
-				Subscription: s,
-				Header:       f.Header,
-				Body:         f.Body,
-			}
-			if !s.completed {
-				s.C <- msg
-			}
-			s.completed = true
-			close(s.C)
-			return
 		}
 	}
 }

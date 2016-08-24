@@ -44,13 +44,7 @@ type Conn struct {
 }
 
 type SubStr struct {
-	subPtr      *Subscription
-	ackMode     AckMode
-	destination string
-	opts        []func(*frame.Frame) error
-	id          string
-	reconn      bool
-	flagChanged string
+	subPtr *Subscription
 }
 
 type reconnectStr struct {
@@ -579,7 +573,8 @@ func (c *Conn) sendFrame(f *frame.Frame) error {
 // will be received by this subscription. A subscription has a channel
 // on which the calling program can receive messages.
 func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Frame) error) (*Subscription, error) {
-	ch := make(chan *frame.Frame)
+	frameCh := make(chan *frame.Frame)
+	controlCh := make(chan func())
 
 	//recGlob.queueName = destination
 
@@ -607,71 +602,28 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 
 	request := writeRequest{
 		Frame: subscribeFrame,
-		C:     ch,
+		C:     frameCh,
 	}
 
 	sub := &SubStr{
 		subPtr: &Subscription{
-			id:          id,
-			destination: destination,
-			conn:        c,
-			ackMode:     ack,
-			C:           make(chan *Message, 16),
-			opts:        opts,
+			id:             id,
+			destination:    destination,
+			conn:           c,
+			ackMode:        ack,
+			C:              make(chan *Message, 16),
+			opts:           opts,
+			controlChannel: controlCh,
+			frameCh:        frameCh,
 		},
-		ackMode:     ack,
-		opts:        opts,
-		destination: destination,
-		id:          id,
-		flagChanged: "old",
 	}
 
-	//if c.isRec == false {
 	c.subs = append(c.subs, &sub)
-	//	} else {
 
-	//}
-	//log.Debugf("len(c.subs)=%d\n", (len(c.subs)))
-
-	for _, s := range c.subs {
-		if (*s).id == id {
-			//	log.Debug("i found s return")
-			go (*s).subPtr.readLoop(ch)
-
-			c.writeCh <- request
-			return (*s).subPtr, nil
-		}
-	}
-	//log.Debug("0_0\n")
-	return nil, nil
-}
-
-func (c *Conn) SubscribeNew(destination string, ack AckMode, id string, opts ...func(*frame.Frame) error) {
-	ch := make(chan *frame.Frame)
-
-	//recGlob.queueName = destination
-
-	//log.Debugf("subNew: id=%s", id)
-
-	subscribeFrame := frame.New(frame.SUBSCRIBE,
-		frame.Destination, destination,
-		frame.Ack, ack.String())
-
-	// If the option functions have not specified the "id" header entry,
-	// create one.
-	//id, ok := subscribeFrame.Header.Contains(frame.Id)
-	//if !ok {
-
-	subscribeFrame.Header.Add(frame.Id, id)
-	//	}
-
-	request := writeRequest{
-		Frame: subscribeFrame,
-		C:     ch,
-	}
-
+	go sub.subPtr.readLoop(frameCh)
 	c.writeCh <- request
-	//return &sub, nil
+
+	return sub.subPtr, nil
 }
 
 // Ack acknowledges a message received from the STOMP server.
@@ -799,37 +751,23 @@ func (c *Conn) reconnect() error {
 	//log.Debugf("(len(currConn.subs)=%d", len(currConn.subs))
 
 	for _, currSub := range c.subs {
-		//	log.Debugf("reconnect: id=%s", (*currSub).id)
-		(*currSub).subPtr.Unsubscribe()
-
-		ch := make(chan *frame.Frame)
-
-		//	log.Debugf("subNew: id=%s", (*currSub).id)
 
 		subscribeFrame := frame.New(frame.SUBSCRIBE,
-			frame.Destination, (*currSub).destination,
-			frame.Ack, ((*currSub).ackMode).String())
+			frame.Destination, (*currSub).subPtr.destination,
+			frame.Ack, ((*currSub).subPtr.ackMode).String())
 
-		subscribeFrame.Header.Add(frame.Id, (*currSub).id)
-		//	}
+		subscribeFrame.Header.Add(frame.Id, (*currSub).subPtr.id)
 
 		request := writeRequest{
 			Frame: subscribeFrame,
-			C:     ch,
+			C:     (*currSub).subPtr.frameCh,
 		}
-		go (*currSub).subPtr.readLoop(ch)
 		c.writeCh <- request
 
-		//currConn.SubscribeNew((*currSub).destination, (*currSub).ackMode, (*currSub).id, (*currSub).opts...)
-
-		(*currSub).subPtr.completed = false
-		(*currSub).subPtr.conn = c
-		(*currSub).subPtr.C = make(chan *Message, 16)
-		//log.Debugf("rec %v\n", &(*currSub).subPtr)
-		//	log.Debugf("rec %v\n", (*currSub).subPtr)
-		//	log.Debugf("flagChanged=%s", currSub.flagChanged)
-		//	}
-
+		(*currSub).subPtr.controlChannel <- func() {
+			(*currSub).subPtr.completed = false
+			(*currSub).subPtr.conn = c
+		}
 	}
 	log.Debug("Recconnecting done. ")
 
