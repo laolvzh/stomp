@@ -27,4 +27,6 @@ type QueueStorage interface {
 	// Stop is called prior to server shutdown. Allows the queue storage
 	// to perform any cleanup, such as flushing to disk.
 	Stop()
+
+	Count(queue string) int
 }

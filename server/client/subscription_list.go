@@ -15,6 +15,10 @@ func NewSubscriptionList() *SubscriptionList {
 	return &SubscriptionList{list.New()}
 }
 
+func (sl *SubscriptionList) Len() int {
+	return sl.subs.Len()
+}
+
 // Add a subscription to the back of the list. Will panic if
 // the subscription destination does not match the subscription
 // list destination. Will also panic if the subscription has already

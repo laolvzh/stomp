@@ -1,6 +1,8 @@
 package server
 
 import (
+	"encoding/json"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -8,22 +10,31 @@ import (
 	"github.com/go-stomp/stomp/frame"
 	"github.com/go-stomp/stomp/server/client"
 	"github.com/go-stomp/stomp/server/queue"
+	"github.com/go-stomp/stomp/server/status"
 	"github.com/go-stomp/stomp/server/topic"
 )
 
+//var log slf.StructuredLogger
+
+//func init() {
+//log = slf.WithContext("processor")
+//}
+
 type requestProcessor struct {
-	server *Server
-	ch     chan client.Request
-	tm     *topic.Manager
-	qm     *queue.Manager
-	stop   bool // has stop been requested
+	server      *Server
+	ch          chan client.Request
+	tm          *topic.Manager
+	qm          *queue.Manager
+	connections map[int64]*client.Conn
+	stop        bool // has stop been requested
 }
 
 func newRequestProcessor(server *Server) *requestProcessor {
 	proc := &requestProcessor{
-		server: server,
-		ch:     make(chan client.Request, 128),
-		tm:     topic.NewManager(),
+		server:      server,
+		ch:          make(chan client.Request, 128),
+		tm:          topic.NewManager(),
+		connections: make(map[int64]*client.Conn),
 	}
 
 	if server.QueueStorage == nil {
@@ -35,58 +46,120 @@ func newRequestProcessor(server *Server) *requestProcessor {
 	return proc
 }
 
+func (proc *requestProcessor) createStatus() status.ServerStatus {
+	//clients
+	clients := make([]status.ServerClientStatus, 0)
+	for id, conn := range proc.connections {
+		subscriptions := make([]status.ServerClientSubscriptionStatus, 0)
+		for _, sub := range conn.Subscriptions() {
+			subscriptions = append(subscriptions, status.ServerClientSubscriptionStatus{
+				ID:   sub.Id(),
+				Dest: sub.Destination(),
+			})
+		}
+		clients = append(clients, status.ServerClientStatus{
+			ID:            id,
+			Address:       conn.Addr(),
+			Peer:          conn.Peer(),
+			Subscriptions: subscriptions,
+		})
+	}
+
+	//
+	queues := proc.qm.GetStatus()
+	//
+	topics := proc.tm.GetStatus()
+
+	return status.ServerStatus{
+		Clients: clients,
+		Queues:  queues,
+		Topics:  topics,
+		Time:    time.Now().String(),
+	}
+}
+
+func (proc *requestProcessor) createStatusFrame() *frame.Frame {
+	f := frame.New("MESSAGE", frame.ContentType, "application/json")
+	status := proc.createStatus()
+	//log.Debugf("status %v", status)
+	bytes, err := json.Marshal(status)
+	//log.Debugf("createStatusFrame %v", string(bytes))
+	if err != nil {
+		f.Body = []byte(fmt.Sprintf("error %v\n", err))
+	} else {
+		f.Body = bytes
+	}
+	return f
+}
+
+func (proc *requestProcessor) sendStatusFrame() {
+	topic := proc.tm.Find("/topic/go-stomp.status")
+	f := proc.createStatusFrame()
+	f.Header.Add(frame.Destination, "/topic/go-stomp.status")
+	//log.Debugf("status frame %v", f.Dump())
+	topic.Enqueue(f)
+}
+
 func (proc *requestProcessor) Serve(l net.Listener) error {
 	go proc.Listen(l)
 
+	ticker := time.NewTicker(5 * time.Second)
+
 	for {
-		r := <-proc.ch
-		switch r.Op {
-		case client.SubscribeOp:
-			if isQueueDestination(r.Sub.Destination()) {
-				queue := proc.qm.Find(r.Sub.Destination())
-				// todo error handling
-				queue.Subscribe(r.Sub)
-			} else {
-				topic := proc.tm.Find(r.Sub.Destination())
-				topic.Subscribe(r.Sub)
-			}
+		select {
+		case _ = <-ticker.C:
+			proc.sendStatusFrame()
+		case r := <-proc.ch:
+			switch r.Op {
+			case client.SubscribeOp:
+				if isQueueDestination(r.Sub.Destination()) {
+					queue := proc.qm.Find(r.Sub.Destination())
+					// todo error handling
+					queue.Subscribe(r.Sub)
+				} else {
+					topic := proc.tm.Find(r.Sub.Destination())
+					topic.Subscribe(r.Sub)
+				}
 
-		case client.UnsubscribeOp:
-			if isQueueDestination(r.Sub.Destination()) {
-				queue := proc.qm.Find(r.Sub.Destination())
-				// todo error handling
-				queue.Unsubscribe(r.Sub)
-			} else {
-				topic := proc.tm.Find(r.Sub.Destination())
-				topic.Unsubscribe(r.Sub)
-			}
+			case client.UnsubscribeOp:
+				if isQueueDestination(r.Sub.Destination()) {
+					queue := proc.qm.Find(r.Sub.Destination())
+					// todo error handling
+					queue.Unsubscribe(r.Sub)
+				} else {
+					topic := proc.tm.Find(r.Sub.Destination())
+					topic.Unsubscribe(r.Sub)
+				}
 
-		case client.EnqueueOp:
-			destination, ok := r.Frame.Header.Contains(frame.Destination)
-			if !ok {
-				// should not happen, already checked in lower layer
-				panic("missing destination")
-			}
+			case client.EnqueueOp:
+				destination, ok := r.Frame.Header.Contains(frame.Destination)
+				if !ok {
+					// should not happen, already checked in lower layer
+					panic("missing destination")
+				}
 
-			if isQueueDestination(destination) {
-				queue := proc.qm.Find(destination)
-				queue.Enqueue(r.Frame)
-			} else {
-				topic := proc.tm.Find(destination)
-				topic.Enqueue(r.Frame)
-			}
+				if isQueueDestination(destination) {
+					queue := proc.qm.Find(destination)
+					queue.Enqueue(r.Frame)
+				} else {
+					topic := proc.tm.Find(destination)
+					topic.Enqueue(r.Frame)
+				}
 
-		case client.RequeueOp:
-			destination, ok := r.Frame.Header.Contains(frame.Destination)
-			if !ok {
-				// should not happen, already checked in lower layer
-				panic("missing destination")
-			}
+			case client.RequeueOp:
+				destination, ok := r.Frame.Header.Contains(frame.Destination)
+				if !ok {
+					// should not happen, already checked in lower layer
+					panic("missing destination")
+				}
 
-			// only requeue to queues, should never happen for topics
-			if isQueueDestination(destination) {
-				queue := proc.qm.Find(destination)
-				queue.Requeue(r.Frame)
+				// only requeue to queues, should never happen for topics
+				if isQueueDestination(destination) {
+					queue := proc.qm.Find(destination)
+					queue.Requeue(r.Frame)
+				}
+			case client.DisconnectedOp:
+				delete(proc.connections, r.Conn.Id())
 			}
 		}
 	}
@@ -99,6 +172,7 @@ func isQueueDestination(dest string) bool {
 }
 
 func (proc *requestProcessor) Listen(l net.Listener) {
+	var conn_id int64 = 0
 	config := newConfig(proc.server)
 	timeout := time.Duration(0) // how long to sleep on accept failure
 	for {
@@ -122,7 +196,9 @@ func (proc *requestProcessor) Listen(l net.Listener) {
 		timeout = 0
 		// TODO: need to pass Server to connection so it has access to
 		// configuration parameters.
-		_ = client.NewConn(config, rw, proc.ch)
+		conn := client.NewConn(config, rw, proc.ch, conn_id)
+		proc.connections[conn_id] = conn
+		conn_id++
 	}
 	// This is no longer required for go 1.1
 	log.Panic("not reached")

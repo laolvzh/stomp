@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/go-stomp/stomp/frame"
+	"github.com/ventu-io/slf"
 )
 
 type Subscription struct {
@@ -12,6 +13,7 @@ type Subscription struct {
 	msgId   uint64            // message-id (or ack) for acknowledgement
 	subList *SubscriptionList // am I in a list
 	frame   *frame.Frame      // message allocated to subscription
+	log     slf.StructuredLogger
 }
 
 func newSubscription(c *Conn, dest string, id string, ack string) *Subscription {
@@ -20,6 +22,7 @@ func newSubscription(c *Conn, dest string, id string, ack string) *Subscription 
 		dest: dest,
 		id:   id,
 		ack:  ack,
+		log:  slf.WithContext("subscription").WithFields(slf.Fields{"dest": dest, "id": id}),
 	}
 }
 
@@ -60,6 +63,7 @@ func (s *Subscription) SendQueueFrame(f *frame.Frame) {
 	s.setSubscriptionHeader(f)
 	s.frame = f
 
+	log.Debugf("SendQueueFrame: %v", f)
 	// let the connection deal with the subscription
 	// acknowledgement
 	s.conn.subChannel <- s
@@ -69,10 +73,13 @@ func (s *Subscription) SendQueueFrame(f *frame.Frame) {
 // subscription. Called within the queue when a message
 // frame is available.
 func (s *Subscription) SendTopicFrame(f *frame.Frame) {
+
 	s.setSubscriptionHeader(f)
 
 	// topics are handled differently, they just go
 	// straight to the client without acknowledgement
+	log.Debugf("SendTopicFrame: %v", f)
+
 	s.conn.writeChannel <- f
 }
 
