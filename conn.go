@@ -41,6 +41,7 @@ type Conn struct {
 	options      *connOptions
 	subs         []**SubStr
 	rec          reconnectStr
+	connInfo     string
 }
 
 type SubStr struct {
@@ -73,7 +74,7 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 		var err error
 		cnet, err = net.Dial(network, addr)
 		if err == nil {
-			log.Infof("Created a connection")
+			log.Infof("Created a connection: %s", cnet.LocalAddr())
 			break
 		} else {
 			if numOfRecon == reconLimit {
@@ -100,9 +101,10 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 	opts = append([](func(*Conn) error){ConnOpt.Host(host)}, opts...)
 
 	c := &Conn{
-		conn:    cnet,
-		readCh:  make(chan *frame.Frame, 8),
-		writeCh: make(chan writeRequest, 8),
+		conn:     cnet,
+		connInfo: cnet.LocalAddr().String(),
+		readCh:   make(chan *frame.Frame, 8),
+		writeCh:  make(chan writeRequest, 8),
 		rec: reconnectStr{
 			addr:    addr,
 			network: network,
@@ -235,6 +237,11 @@ func (c *Conn) Session() string {
 // this value will be a blank string.
 func (c *Conn) Server() string {
 	return c.server
+}
+
+//GetConnInfo returns address,
+func (c *Conn) GetConnInfo() string {
+	return c.connInfo
 }
 
 // readLoop is a goroutine that reads frames from the
