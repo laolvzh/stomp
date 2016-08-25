@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const pwdCurr string = "github.com/go-stomp/stomp/server/client"
+const pwdCurr string = "server/client/conn.go"
 
 // Maximum number of pending frames allowed to a client.
 // before a disconnect occurs. If the client cannot keep
@@ -123,20 +123,20 @@ func (c *Conn) readLoop() {
 	for {
 		if readTimeout == time.Duration(0) {
 			// infinite timeout
-			if expectingConnect {//connect frame timeout
-				c.rw.SetReadDeadline(time.Now().Add(3*time.Minute))
-			}else{
+			if expectingConnect { //connect frame timeout
+				c.rw.SetReadDeadline(time.Now().Add(3 * time.Minute))
+			} else {
 				c.rw.SetReadDeadline(time.Time{})
 			}
 		} else {
-			c.rw.SetReadDeadline(time.Now().Add(readTimeout*2))
+			c.rw.SetReadDeadline(time.Now().Add(readTimeout * 2))
 		}
 		f, err := reader.Read()
 		if err != nil {
 			if err == io.EOF {
-				c.log.Infof("connection closed: %v", c.rw.RemoteAddr())
+				c.log.Infof("connection closed")
 			} else {
-				c.log.Errorf("read failed: %s: %s,", err.Error(), c.rw.RemoteAddr())
+				c.log.Errorf("read failed: %s,", err.Error())
 			}
 
 			// Close the read channel so that the processing loop will
@@ -486,14 +486,15 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	passcode, _ := f.Header.Contains(frame.Passcode)
 	if !c.config.Authenticate(login, passcode) {
 		// sleep to slow down a rogue client a little bit
-		c.log.Error("authentication failed")
+		c.log.Errorf("authentication failed %v", f.Dump())
 		time.Sleep(time.Second)
 		return authenticationFailed
 	}
+	c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login})
 
 	c.version, err = determineVersion(f)
 	if err != nil {
-		c.log.Error("protocol version negotiation failed")
+		c.log.Errorf("protocol version negotiation failed %v", f.Dump())
 		return err
 	}
 	c.validator = stomp.NewValidator(c.version)
@@ -507,7 +508,7 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 
 	cx, cy, err := getHeartBeat(f)
 	if err != nil {
-		c.log.Warn("invalid heart-beat")
+		c.log.Warnf("invalid heart-beat, %v", f.Dump())
 		return err
 	}
 
@@ -532,7 +533,11 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 		frame.Version, string(c.version),
 		frame.Server, "stompd/x.y.z", // TODO: get version
 		frame.HeartBeat, fmt.Sprintf("%d,%d", cy, cx))
+	if peer_id, ok := f.Header.Contains("wormmq.link.peer"); ok {
+		c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login, "peer": peer_id})
+	}
 
+	c.log.Infof("connected %v", f.Dump())
 	c.sendImmediately(response)
 	c.stateFunc = connected
 

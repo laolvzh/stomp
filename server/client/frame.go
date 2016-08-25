@@ -19,7 +19,7 @@ const (
 	maxHeartBeat = 999999999
 )
 
-var log = slf.WithContext("stomp/server/client/frame.go")
+var log = slf.WithContext("server/client/frame.go")
 
 var (
 	// Regexp for heart-beat header value
@@ -119,6 +119,6 @@ func getHeartBeat(f *frame.Frame) (cx, cy int, err error) {
 		cx = 0
 		cy = 0
 	}
-	log.Infof("getHeartBeat: %s %d %d", f.Command, cx, cy )
+	log.Debugf("getHeartBeat: %s %d %d", f.Command, cx, cy)
 	return
 }
