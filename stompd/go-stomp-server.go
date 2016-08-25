@@ -24,6 +24,16 @@ import (
 
 var configFile string
 
+var (
+	// These fields are populated by govvv
+	BuildDate  string
+	GitCommit  string
+	GitBranch  string
+	GitState   string
+	GitSummary string
+	Version    string
+)
+
 var log = slf.WithContext("go-stompd-server.go")
 
 // GlobalConf is a struct with global options,
@@ -53,6 +63,13 @@ func main() {
 	defer func() { l.Close() }()
 
 	a := auth.NewAuth()
+
+	log.Infof("BuildDate=%s\n", BuildDate)
+	log.Infof("GitCommit=%s\n", GitCommit)
+	log.Infof("GitBranch=%s\n", GitBranch)
+	log.Infof("GitState=%s\n", GitState)
+	log.Infof("GitSummary=%s\n", GitSummary)
+	log.Infof("VERSION=%s\n", Version)
 
 	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
 	log.Error("-----------------------------------------------")
