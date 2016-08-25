@@ -4,6 +4,7 @@ Package frame provides functionality for manipulating STOMP frames.
 package frame
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -41,7 +42,20 @@ func (f *Frame) Clone() *Frame {
 	return fc
 }
 
-
 func (f *Frame) String() string {
 	return fmt.Sprintf("%s %s", f.Command, string(f.Body))
+}
+
+func (f *Frame) Dump() string {
+	var buffer bytes.Buffer
+	for index := 0; index < f.Header.Len(); index++ {
+		if index > 0 {
+			buffer.WriteString(", ")
+		}
+		k, v := f.Header.GetAt(index)
+		fmt.Fprintf(&buffer, "\"%s\": \"%s\"", k, v)
+		//buffer.WriteString(fmt.Sprintf(
+		//f.Header.Add(headers[index], headers[index+1])
+	}
+	return fmt.Sprintf("%s %s %s", f.Command, string(f.Body), buffer.String())
 }
