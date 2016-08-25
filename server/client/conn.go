@@ -172,7 +172,7 @@ func (c *Conn) readLoop() {
 			continue
 		}
 
-		c.log.Debugf("frame %v", f)
+		//c.log.Debugf("frame %v", f)
 
 		// If we are expecting a CONNECT or STOMP command, extract
 		// the heart-beat header and work out the read timeout.
@@ -309,7 +309,7 @@ func (c *Conn) processLoop() {
 				timer.Stop()
 				timer = nil
 			}
-			c.log.Debugf("sub: %v %v", sub, sub.frame.Dump())
+			//c.log.Debugf("sub: %v %v", sub, sub.frame.Dump())
 
 			// there is the possibility that the subscription
 			// has been unsubscribed just prior to receiving

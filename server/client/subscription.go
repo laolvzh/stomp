@@ -63,7 +63,7 @@ func (s *Subscription) SendQueueFrame(f *frame.Frame) {
 	s.setSubscriptionHeader(f)
 	s.frame = f
 
-	log.Debugf("SendQueueFrame: %v", f)
+	//log.Debugf("SendQueueFrame: %v", f)
 	// let the connection deal with the subscription
 	// acknowledgement
 	s.conn.subChannel <- s
@@ -78,7 +78,7 @@ func (s *Subscription) SendTopicFrame(f *frame.Frame) {
 
 	// topics are handled differently, they just go
 	// straight to the client without acknowledgement
-	log.Debugf("SendTopicFrame: %v", f)
+	//log.Debugf("SendTopicFrame: %v", f)
 
 	s.conn.writeChannel <- f
 }
