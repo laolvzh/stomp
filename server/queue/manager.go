@@ -35,8 +35,8 @@ func (qm *Manager) Find(destination string) *Queue {
 
 func (qm *Manager) GetStatus() []status.QueueStatus {
 	result := make([]status.QueueStatus, 0)
-	for k, v := range qm.queues {
-		log.Debugf("GetStatus: %v: %v", k, v)
+	for _, v := range qm.queues {
+		//log.Debugf("GetStatus: %v: %v", k, v)
 		result = append(result, v.GetStatus())
 	}
 	return result

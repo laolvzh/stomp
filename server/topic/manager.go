@@ -38,8 +38,8 @@ func (tm *Manager) Find(destination string) *Topic {
 
 func (tm *Manager) GetStatus() []status.QueueStatus {
   result := make([]status.QueueStatus, 0)
-  for k,v := range tm.topics {
-    log.Debugf("GetStatus: %v: %v", k, v)
+  for _,v := range tm.topics {
+    //log.Debugf("GetStatus: %v: %v", k, v)
     result = append(result, v.GetStatus())
   }
   return result
