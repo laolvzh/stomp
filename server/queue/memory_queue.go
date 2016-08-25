@@ -68,3 +68,12 @@ func (m *MemoryQueueStorage) Start() {
 func (m *MemoryQueueStorage) Stop() {
 	m.lists = nil
 }
+
+func (m *MemoryQueueStorage) Count(queue string) int {
+	l, ok := m.lists[queue]
+	if !ok {
+		return 0
+	}
+
+	return l.Len()
+}

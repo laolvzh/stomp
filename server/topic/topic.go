@@ -7,6 +7,7 @@ import (
 	"container/list"
 
 	"github.com/go-stomp/stomp/frame"
+	"github.com/go-stomp/stomp/server/status"
 )
 
 // A Topic is used for broadcasting to subscribed clients.
@@ -24,6 +25,16 @@ func newTopic(destination string) *Topic {
 		subs:        list.New(),
 	}
 }
+
+
+func (t *Topic) GetStatus() status.QueueStatus {
+	return status.QueueStatus{
+		Dest: t.destination,
+		MessageCount: 0,
+		SubscriptionCount: t.subs.Len(),
+	}
+}
+
 
 // Subscribe adds a subscription to a topic. Any message sent to the
 // topic will be transmitted to the subscription's client until

@@ -1,5 +1,16 @@
 package queue
 
+import (
+	"github.com/go-stomp/stomp/server/status"
+	"github.com/ventu-io/slf"
+)
+
+var log slf.StructuredLogger
+
+func init() {
+	log = slf.WithContext("queue/manager")
+}
+
 // Queue manager.
 type Manager struct {
 	qstore Storage // handles queue storage
@@ -20,4 +31,13 @@ func (qm *Manager) Find(destination string) *Queue {
 		qm.queues[destination] = q
 	}
 	return q
+}
+
+func (qm *Manager) GetStatus() []status.QueueStatus {
+	result := make([]status.QueueStatus, 0)
+	for k, v := range qm.queues {
+		log.Debugf("GetStatus: %v: %v", k, v)
+		result = append(result, v.GetStatus())
+	}
+	return result
 }

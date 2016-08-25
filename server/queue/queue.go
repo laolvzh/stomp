@@ -6,6 +6,7 @@ package queue
 import (
 	"github.com/go-stomp/stomp/frame"
 	"github.com/go-stomp/stomp/server/client"
+	"github.com/go-stomp/stomp/server/status"
 )
 
 // Queue for storing message frames.
@@ -21,6 +22,14 @@ func newQueue(destination string, qstore Storage) *Queue {
 		destination: destination,
 		qstore:      qstore,
 		subs:        client.NewSubscriptionList(),
+	}
+}
+
+func (q *Queue) GetStatus() status.QueueStatus {
+	return status.QueueStatus{
+		Dest:              q.destination,
+		MessageCount:      q.qstore.Count(q.destination),
+		SubscriptionCount: q.subs.Len(),
 	}
 }
 

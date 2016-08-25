@@ -35,12 +35,14 @@ type Conn struct {
 	stateFunc      func(c *Conn, f *frame.Frame) error // State processing function
 	writeTimeout   time.Duration                       // Heart beat write timeout
 	version        stomp.Version                       // Negotiated STOMP protocol version
-	closed         bool                                // Is the connection closed
-	txStore        *txStore                            // Stores transactions in progress
-	lastMsgId      uint64                              // last message-id value
-	subList        *SubscriptionList                   // List of subscriptions requiring acknowledgement
-	subs           map[string]*Subscription            // All subscriptions, keyed by id
-	validator      stomp.Validator                     // For validating STOMP frames
+	id             int64
+	peer           string
+	closed         bool                     // Is the connection closed
+	txStore        *txStore                 // Stores transactions in progress
+	lastMsgId      uint64                   // last message-id value
+	subList        *SubscriptionList        // List of subscriptions requiring acknowledgement
+	subs           map[string]*Subscription // All subscriptions, keyed by id
+	validator      stomp.Validator          // For validating STOMP frames
 	log            slf.StructuredLogger
 }
 
@@ -49,7 +51,7 @@ type Conn struct {
 // The rw parameter is a network connection object for communicating with
 // the client. All client requests are sent via the ch channel to the
 // upper layer.
-func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
+func NewConn(config Config, rw net.Conn, ch chan Request, connId int64) *Conn {
 	c := &Conn{
 		config:         config,
 		rw:             rw,
@@ -60,11 +62,28 @@ func NewConn(config Config, rw net.Conn, ch chan Request) *Conn {
 		txStore:        &txStore{},
 		subList:        NewSubscriptionList(),
 		subs:           make(map[string]*Subscription),
-		log:            slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": rw.RemoteAddr()}),
+		id:             connId,
+		log:            slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": rw.RemoteAddr(), "id": connId}),
 	}
 	go c.readLoop()
 	go c.processLoop()
 	return c
+}
+
+func (c *Conn) Id() int64 {
+	return c.id
+}
+
+func (c *Conn) Addr() string {
+	return c.rw.RemoteAddr().String()
+}
+
+func (c *Conn) Peer() string {
+	return c.peer
+}
+
+func (c *Conn) Subscriptions() map[string]*Subscription {
+	return c.subs
 }
 
 // Write a frame to the connection without requiring
@@ -290,6 +309,7 @@ func (c *Conn) processLoop() {
 				timer.Stop()
 				timer = nil
 			}
+			c.log.Debugf("sub: %v %v", sub, sub.frame.Dump())
 
 			// there is the possibility that the subscription
 			// has been unsubscribed just prior to receiving
@@ -490,7 +510,7 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 		time.Sleep(time.Second)
 		return authenticationFailed
 	}
-	c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login})
+	c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login, "id": c.id})
 
 	c.version, err = determineVersion(f)
 	if err != nil {
@@ -502,13 +522,13 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	if c.version == stomp.V10 {
 		// don't want to handle V1.0 at the moment
 		// TODO: get working for V1.0
-		c.log.Warnf("unsupported version %s", c.version)
+		c.log.Errorf("unsupported version %s", c.version)
 		return unsupportedVersion
 	}
 
 	cx, cy, err := getHeartBeat(f)
 	if err != nil {
-		c.log.Warnf("invalid heart-beat, %v", f.Dump())
+		c.log.Errorf("invalid heart-beat, %v", f.Dump())
 		return err
 	}
 
@@ -534,7 +554,8 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 		frame.Server, "stompd/x.y.z", // TODO: get version
 		frame.HeartBeat, fmt.Sprintf("%d,%d", cy, cx))
 	if peer_id, ok := f.Header.Contains("wormmq.link.peer"); ok {
-		c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login, "peer": peer_id})
+		c.peer = peer_id
+		c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login, "peer": peer_id, "id": c.id})
 	}
 
 	c.log.Infof("connected %v", f.Dump())
