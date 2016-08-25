@@ -49,20 +49,8 @@ func newRequestProcessor(server *Server) *requestProcessor {
 func (proc *requestProcessor) createStatus() status.ServerStatus {
 	//clients
 	clients := make([]status.ServerClientStatus, 0)
-	for id, conn := range proc.connections {
-		subscriptions := make([]status.ServerClientSubscriptionStatus, 0)
-		for _, sub := range conn.Subscriptions() {
-			subscriptions = append(subscriptions, status.ServerClientSubscriptionStatus{
-				ID:   sub.Id(),
-				Dest: sub.Destination(),
-			})
-		}
-		clients = append(clients, status.ServerClientStatus{
-			ID:            id,
-			Address:       conn.Addr(),
-			Peer:          conn.Peer(),
-			Subscriptions: subscriptions,
-		})
+	for _, conn := range proc.connections {
+		clients = append(clients, conn.GetStatus())
 	}
 
 	//
@@ -74,7 +62,7 @@ func (proc *requestProcessor) createStatus() status.ServerStatus {
 		Clients: clients,
 		Queues:  queues,
 		Topics:  topics,
-		Time:    time.Now().String(),
+		Time:    time.Now().Format("2006-01-02T15:04:05"),
 	}
 }
 
@@ -82,7 +70,7 @@ func (proc *requestProcessor) createStatusFrame() *frame.Frame {
 	f := frame.New("MESSAGE", frame.ContentType, "application/json")
 	status := proc.createStatus()
 	//log.Debugf("status %v", status)
-	bytes, err := json.Marshal(status)
+	bytes, err := json.MarshalIndent(status, "", "  ")
 	//log.Debugf("createStatusFrame %v", string(bytes))
 	if err != nil {
 		f.Body = []byte(fmt.Sprintf("error %v\n", err))

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-stomp/stomp"
 	"github.com/go-stomp/stomp/frame"
+	"github.com/go-stomp/stomp/server/status"
 	"github.com/ventu-io/slf"
 	"io"
 	"net"
@@ -37,6 +38,7 @@ type Conn struct {
 	version        stomp.Version                       // Negotiated STOMP protocol version
 	id             int64
 	peer           string
+	time           time.Time
 	closed         bool                     // Is the connection closed
 	txStore        *txStore                 // Stores transactions in progress
 	lastMsgId      uint64                   // last message-id value
@@ -63,6 +65,7 @@ func NewConn(config Config, rw net.Conn, ch chan Request, connId int64) *Conn {
 		subList:        NewSubscriptionList(),
 		subs:           make(map[string]*Subscription),
 		id:             connId,
+		time:           time.Now(),
 		log:            slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": rw.RemoteAddr(), "id": connId}),
 	}
 	go c.readLoop()
@@ -70,20 +73,27 @@ func NewConn(config Config, rw net.Conn, ch chan Request, connId int64) *Conn {
 	return c
 }
 
+//get client connection Id
 func (c *Conn) Id() int64 {
 	return c.id
 }
 
-func (c *Conn) Addr() string {
-	return c.rw.RemoteAddr().String()
-}
-
-func (c *Conn) Peer() string {
-	return c.peer
-}
-
-func (c *Conn) Subscriptions() map[string]*Subscription {
-	return c.subs
+//get client connection status
+func (c *Conn) GetStatus() status.ServerClientStatus {
+	subscriptions := make([]status.ServerClientSubscriptionStatus, 0)
+	for _, sub := range c.subs {
+		subscriptions = append(subscriptions, status.ServerClientSubscriptionStatus{
+			ID:   sub.Id(),
+			Dest: sub.Destination(),
+		})
+	}
+	return status.ServerClientStatus{
+		ID:            c.id,
+		Address:       c.rw.RemoteAddr().String(),
+		Peer:          c.peer,
+		Time:          c.time.Format("2006-01-02T15:04:05"),
+		Subscriptions: subscriptions,
+	}
 }
 
 // Write a frame to the connection without requiring
@@ -510,7 +520,8 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 		time.Sleep(time.Second)
 		return authenticationFailed
 	}
-	c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login, "id": c.id})
+	c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login, "id": c.id, "peer": login})
+	c.peer = login
 
 	c.version, err = determineVersion(f)
 	if err != nil {
