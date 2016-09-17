@@ -687,7 +687,7 @@ func (c *Conn) handleSubscribe(f *frame.Frame) error {
 	c.subs[id] = sub
 
 	// send information about new subscription to upper layer
-	с.sendProcessorRequest(Request{Op: SubscribeOp, Sub: sub})
+	c.sendProcessorRequest(Request{Op: SubscribeOp, Sub: sub})
 	return nil
 }
 
@@ -706,7 +706,7 @@ func (c *Conn) handleUnsubscribe(f *frame.Frame) error {
 	delete(c.subs, id)
 
 	// tell the upper layer of the unsubscribe
-	с.sendProcessorRequest(Request{Op: UnsubscribeOp, Sub: sub})
+	c.sendProcessorRequest(Request{Op: UnsubscribeOp, Sub: sub})
 	return nil
 }
 
