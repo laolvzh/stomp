@@ -221,6 +221,14 @@ func (c *Conn) readLoop() {
 	}
 }
 
+func (c *Conn) sendProcessorRequest(r Request) {
+	if len(c.requestChannel) >= 127 {
+		c.log.Warnf("%s too many requests")
+		return
+	}
+	c.requestChannel <- r
+}
+
 // Go routine that processes all read frames and all write frames.
 // Having all processing in one go routine helps eliminate any race conditions.
 func (c *Conn) processLoop() {
@@ -344,14 +352,14 @@ func (c *Conn) processLoop() {
 					// so send the subscription back the upper layer
 					// straight away
 					sub.frame = nil
-					c.requestChannel <- Request{Op: SubscribeOp, Sub: sub}
+					c.sendProcessorRequest(Request{Op: SubscribeOp, Sub: sub})
 				} else {
 					// subscription requires acknowledgement
 					c.subList.Add(sub)
 				}
 			} else {
 				// Subscription no longer exists, requeue
-				c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
+				c.sendProcessorRequest(Request{Op: RequeueOp, Frame: sub.frame})
 			}
 
 		case _ = <-timerChannel:
@@ -382,7 +390,7 @@ func (c *Conn) cleanupConn() {
 		// Note that we only really need to send a request if the
 		// subscription does not have a frame, but for simplicity
 		// all subscriptions are unsubscribed from the upper layer.
-		c.requestChannel <- Request{Op: UnsubscribeOp, Sub: sub}
+		c.sendProcessorRequest(Request{Op: UnsubscribeOp, Sub: sub})
 	}
 
 	// Clear out the map of subscriptions
@@ -391,7 +399,7 @@ func (c *Conn) cleanupConn() {
 	// Every subscription requiring acknowledgement has a frame
 	// that needs to be requeued in the upper layer
 	for sub := c.subList.Get(); sub != nil; sub = c.subList.Get() {
-		c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
+		c.sendProcessorRequest(Request{Op: RequeueOp, Frame: sub.frame})
 	}
 
 	// empty the subscription and write queue
@@ -399,7 +407,7 @@ func (c *Conn) cleanupConn() {
 	c.cleanupSubChannel()
 
 	// Tell the upper layer we are now disconnected
-	c.requestChannel <- Request{Op: DisconnectedOp, Conn: c}
+	c.sendProcessorRequest(Request{Op: DisconnectedOp, Conn: c})
 
 	// empty the subscription and write queue one more time
 	c.discardWriteChannelFrames()
@@ -435,7 +443,7 @@ func (c *Conn) cleanupSubChannel() {
 			if !ok {
 				finished = true
 			} else {
-				c.requestChannel <- Request{Op: RequeueOp, Frame: sub.frame}
+				c.sendProcessorRequest(Request{Op: RequeueOp, Frame: sub.frame})
 			}
 
 		default:
@@ -574,7 +582,7 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	c.stateFunc = connected
 
 	// tell the upper layer we are connected
-	c.requestChannel <- Request{Op: ConnectedOp, Conn: c}
+	c.sendProcessorRequest(Request{Op: ConnectedOp, Conn: c})
 
 	return nil
 }
@@ -679,7 +687,7 @@ func (c *Conn) handleSubscribe(f *frame.Frame) error {
 	c.subs[id] = sub
 
 	// send information about new subscription to upper layer
-	c.requestChannel <- Request{Op: SubscribeOp, Sub: sub}
+	с.sendProcessorRequest(Request{Op: SubscribeOp, Sub: sub})
 	return nil
 }
 
@@ -698,7 +706,7 @@ func (c *Conn) handleUnsubscribe(f *frame.Frame) error {
 	delete(c.subs, id)
 
 	// tell the upper layer of the unsubscribe
-	c.requestChannel <- Request{Op: UnsubscribeOp, Sub: sub}
+	с.sendProcessorRequest(Request{Op: UnsubscribeOp, Sub: sub})
 	return nil
 }
 
@@ -738,7 +746,7 @@ func (c *Conn) handleAck(f *frame.Frame) error {
 
 			// let the upper layer know that this subscription
 			// is ready for another frame
-			c.requestChannel <- Request{Op: SubscribeOp, Sub: s}
+			c.sendProcessorRequest(Request{Op: SubscribeOp, Sub: s})
 		})
 	}
 
@@ -777,14 +785,14 @@ func (c *Conn) handleNack(f *frame.Frame) error {
 		// handle any subscriptions that are acknowledged by this msg
 		c.subList.Nack(msgId64, func(s *Subscription) {
 			// send frame back to upper layer for requeue
-			c.requestChannel <- Request{Op: RequeueOp, Frame: s.frame}
+			c.sendProcessorRequest(Request{Op: RequeueOp, Frame: s.frame})
 
 			// remove frame from the subscription, it has been requeued
 			s.frame = nil
 
 			// let the upper layer know that this subscription
 			// is ready for another frame
-			c.requestChannel <- Request{Op: SubscribeOp, Sub: s}
+			c.sendProcessorRequest(Request{Op: SubscribeOp, Sub: s})
 		})
 	}
 	return nil
@@ -810,7 +818,7 @@ func (c *Conn) handleSend(f *frame.Frame) error {
 		// not in a transaction
 		// change from SEND to MESSAGE
 		f.Command = frame.MESSAGE
-		c.requestChannel <- Request{Op: EnqueueOp, Frame: f}
+		c.sendProcessorRequest(Request{Op: EnqueueOp, Frame: f})
 	}
 
 	return nil
