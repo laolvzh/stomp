@@ -600,7 +600,7 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 			WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
 				"login":     login,
 				"peer":      c.peer,
-				"peen_name": peer_name,
+				"peer_name": peer_name,
 				"id":        c.id})
 	}
 
