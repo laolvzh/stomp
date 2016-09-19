@@ -223,7 +223,7 @@ func (c *Conn) readLoop() {
 
 func (c *Conn) sendProcessorRequest(r Request) {
 	if len(c.requestChannel) >= 127 {
-		c.log.Warnf("%s too many requests")
+		c.log.Warnf("%v too many requests", r)
 		return
 	}
 	c.requestChannel <- r
@@ -504,6 +504,7 @@ func connected(c *Conn, f *frame.Frame) error {
 		return c.handleNack(f)
 	case frame.MESSAGE, frame.RECEIPT, frame.ERROR:
 		// should only be sent by the server, should not come from the client
+		c.log.Errorf("unexpected frame %v", f)
 		return unexpectedCommand
 	}
 	return unknownCommand
