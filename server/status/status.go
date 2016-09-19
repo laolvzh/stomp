@@ -8,6 +8,7 @@ type ServerClientSubscriptionStatus struct {
 type ServerClientStatus struct {
 	ID            int64
 	Address       string
+	Login         string
 	Peer          string
 	PeerName      string
 	Time          string
