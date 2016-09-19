@@ -38,6 +38,7 @@ type Conn struct {
 	version        stomp.Version                       // Negotiated STOMP protocol version
 	id             int64
 	peer           string
+	peer_name      string
 	time           time.Time
 	closed         bool                     // Is the connection closed
 	txStore        *txStore                 // Stores transactions in progress
@@ -91,6 +92,7 @@ func (c *Conn) GetStatus() status.ServerClientStatus {
 		ID:            c.id,
 		Address:       c.rw.RemoteAddr().String(),
 		Peer:          c.peer,
+		PeerName:      c.peer_name,
 		Time:          c.time.Format("2006-01-02T15:04:05"),
 		Subscriptions: subscriptions,
 	}
@@ -377,6 +379,7 @@ func (c *Conn) processLoop() {
 // unsubscribing all subscriptions with the upper layer, and
 // re-queueing all unacknowledged messages to the upper layer.
 func (c *Conn) cleanupConn() {
+	c.log.Info("cleanupConn")
 	// clean up any pending transactions
 	c.txStore.Init()
 
@@ -421,6 +424,7 @@ func (c *Conn) cleanupConn() {
 // do not get acknowledged, and are either topic MESSAGE
 // frames or ERROR frames.
 func (c *Conn) discardWriteChannelFrames() {
+	c.log.Info("discardWriteChannelFrames")
 	for finished := false; !finished; {
 		select {
 		case _, ok := <-c.writeChannel:
@@ -435,6 +439,7 @@ func (c *Conn) discardWriteChannelFrames() {
 }
 
 func (c *Conn) cleanupSubChannel() {
+	c.log.Info("cleanupSubChannel")
 	// Read the subscription channel until it is empty.
 	// Each frame should be requeued to the upper layer.
 	for finished := false; !finished; {
@@ -529,8 +534,12 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 		time.Sleep(time.Second)
 		return authenticationFailed
 	}
-	c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login, "id": c.id, "peer": login})
-	c.peer = login
+	c.log = slf.WithContext(pwdCurr).
+				WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
+					"login": login,
+					"id": c.id})
+	c.peer = ""
+	c.peer_name = ""
 
 	c.version, err = determineVersion(f)
 	if err != nil {
@@ -575,7 +584,21 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 		frame.HeartBeat, fmt.Sprintf("%d,%d", cy, cx))
 	if peer_id, ok := f.Header.Contains("wormmq.link.peer"); ok {
 		c.peer = peer_id
-		c.log = slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": c.rw.RemoteAddr(), "login": login, "peer": peer_id, "id": c.id})
+		c.log = slf.WithContext(pwdCurr).
+					WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
+						"login": login,
+						"peer": peer_id,
+						"id": c.id})
+	}
+
+	if peer_name, ok := f.Header.Contains("wormmq.link.peer_name"); ok {
+		c.peer_name = peer_name
+		c.log = slf.WithContext(pwdCurr).
+					WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
+						"login": login,
+						"peer": c.peer,
+						"peen_name": peer_name,
+						"id": c.id})
 	}
 
 	c.log.Infof("connected %v", f.Dump())

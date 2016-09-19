@@ -9,6 +9,7 @@ type ServerClientStatus struct {
 	ID            int64
 	Address       string
 	Peer          string
+	PeerName      string
 	Time          string
 	Subscriptions []ServerClientSubscriptionStatus
 }
