@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -58,11 +59,24 @@ func (proc *requestProcessor) createStatus() status.ServerStatus {
 	//
 	topics := proc.tm.GetStatus()
 
+	hostname, _ := os.Hostname()
+
 	return status.ServerStatus{
-		Clients: clients,
-		Queues:  queues,
-		Topics:  topics,
-		Time:    time.Now().Format("2006-01-02T15:04:05"),
+		Clients:      clients,
+		Queues:       queues,
+		Topics:       topics,
+		Time:         time.Now().Format("2006-01-02T15:04:05"),
+		Type:         "status",
+		Id:           proc.server.Id(),
+		Name:         proc.server.Name(),
+		Version:      proc.server.Version(),
+		Subtype:      "server",
+		Subsystem:    "processor",
+		ComputerName: hostname,
+		UserName:     fmt.Sprintf("%s", os.Getuid()),
+		ProcessName:  os.Args[0],
+		Pid:          os.Getpid(),
+		Severity:     20,
 	}
 }
 
@@ -70,7 +84,8 @@ func (proc *requestProcessor) createStatusFrame() *frame.Frame {
 	f := frame.New("MESSAGE", frame.ContentType, "application/json")
 	status := proc.createStatus()
 	//log.Debugf("status %v", status)
-	bytes, err := json.MarshalIndent(status, "", "  ")
+	//bytes, err := json.MarshalIndent(status, "", "  ")
+	bytes, err := json.Marshal(status)
 	//log.Debugf("createStatusFrame %v", string(bytes))
 	if err != nil {
 		f.Body = []byte(fmt.Sprintf("error %v\n", err))

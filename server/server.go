@@ -32,6 +32,8 @@ const (
 	DefaultHeartBeat = time.Minute
 )
 
+var Version string
+
 func init() {
 	log = slf.WithContext(pwdCurr)
 }
@@ -45,6 +47,9 @@ type Authenticator interface {
 
 // A Server defines parameters for running a STOMP server.
 type Server struct {
+	id            string
+	name          string
+	version       string
 	Logger        slf.StructuredLogger
 	Addr          string        // TCP address to listen on, DefaultAddr if empty
 	Authenticator Authenticator // Authenticates login/passcodes. If nil no authentication is performed
@@ -52,8 +57,30 @@ type Server struct {
 	HeartBeat     time.Duration // Preferred value for heart-beat read/write timeout, if zero, then DefaultHeartBeat.
 }
 
+func (s *Server) Id() string {
+	return s.id
+}
+
+func (s *Server) Name() string {
+	return s.name
+}
+
+func (s *Server) Version() string {
+	return s.version
+}
+
+func NewServer(id string, name string, version string, addr string, a Authenticator) *Server {
+	return &Server{
+		id:            id,
+		name:          name,
+		version:       version,
+		Addr:          addr,
+		Authenticator: a,
+	}
+}
+
 // ListenAndServe listens on the TCP network address addr and then calls Serve.
-func ListenAndServe(addr string, a Authenticator) error {
+/*func ListenAndServe(addr string, a Authenticator) error {
 	s := &Server{Addr: addr, Authenticator: a}
 	defer log.Debug("ListenAndServe() function processed")
 
@@ -67,7 +94,7 @@ func Serve(l net.Listener, a Authenticator) error {
 	defer log.Debug("Serve() function processed")
 
 	return s.Serve(l)
-}
+}*/
 
 // ListenAndServe listens on the TCP network address s.Addr and
 // then calls Serve to handle requests on the incoming connections.
@@ -81,14 +108,16 @@ func (s *Server) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
+	log.Debugf("listening on %v %s", l.Addr().Network(), l.Addr().String())
 
-	return s.Serve(l)
+	return s.serve(l)
 }
 
 // Serve accepts incoming connections on the Listener l, creating a new
 // service thread for each connection. The service threads read
 // requests and then process each request.
-func (s *Server) Serve(l net.Listener) error {
+
+func (s *Server) serve(l net.Listener) error {
 	proc := newRequestProcessor(s)
 	return proc.Serve(l)
 }
