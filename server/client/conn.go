@@ -37,6 +37,7 @@ type Conn struct {
 	writeTimeout   time.Duration                       // Heart beat write timeout
 	version        stomp.Version                       // Negotiated STOMP protocol version
 	id             int64
+	login          string
 	peer           string
 	peer_name      string
 	time           time.Time
@@ -91,6 +92,7 @@ func (c *Conn) GetStatus() status.ServerClientStatus {
 	return status.ServerClientStatus{
 		ID:            c.id,
 		Address:       c.rw.RemoteAddr().String(),
+		Login:         c.login,
 		Peer:          c.peer,
 		PeerName:      c.peer_name,
 		Time:          c.time.Format("2006-01-02T15:04:05"),
@@ -535,9 +537,10 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 		return authenticationFailed
 	}
 	c.log = slf.WithContext(pwdCurr).
-				WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
-					"login": login,
-					"id": c.id})
+		WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
+			"login": login,
+			"id":    c.id})
+	c.login = login
 	c.peer = ""
 	c.peer_name = ""
 
@@ -585,20 +588,20 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	if peer_id, ok := f.Header.Contains("wormmq.link.peer"); ok {
 		c.peer = peer_id
 		c.log = slf.WithContext(pwdCurr).
-					WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
-						"login": login,
-						"peer": peer_id,
-						"id": c.id})
+			WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
+				"login": login,
+				"peer":  peer_id,
+				"id":    c.id})
 	}
 
 	if peer_name, ok := f.Header.Contains("wormmq.link.peer_name"); ok {
 		c.peer_name = peer_name
 		c.log = slf.WithContext(pwdCurr).
-					WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
-						"login": login,
-						"peer": c.peer,
-						"peen_name": peer_name,
-						"id": c.id})
+			WithFields(slf.Fields{"addr": c.rw.RemoteAddr(),
+				"login":     login,
+				"peer":      c.peer,
+				"peen_name": peer_name,
+				"id":        c.id})
 	}
 
 	c.log.Infof("connected %v", f.Dump())
