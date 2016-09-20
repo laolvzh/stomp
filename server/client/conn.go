@@ -107,7 +107,7 @@ func (c *Conn) Send(f *frame.Frame) {
 	// write channel is full, the caller will block.
 	if len(c.writeChannel) == size(c.writeChannel) {
 		c.log.Warnf("Send: to many write requests")
-		c.log.Debuf("Send: drop %v", f)
+		c.log.Debugf("Send: drop %v", f)
 		return
 	}
 	c.writeChannel <- f
