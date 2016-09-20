@@ -105,7 +105,7 @@ func (c *Conn) GetStatus() status.ServerClientStatus {
 func (c *Conn) Send(f *frame.Frame) {
 	// Place the frame on the write channel. If the
 	// write channel is full, the caller will block.
-	if len(c.writeChannel) == size(c.writeChannel) {
+	if len(c.writeChannel) >= cap(c.writeChannel) {
 		c.log.Warnf("Send: to many write requests")
 		c.log.Debugf("Send: drop %v", f)
 		return
