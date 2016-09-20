@@ -65,7 +65,7 @@ func (proc *requestProcessor) createStatus() status.ServerStatus {
 		Clients:      clients,
 		Queues:       queues,
 		Topics:       topics,
-		Time:         time.Now().Format("2006-01-02T15:04:05"),
+		Time:         time.Now().Format("2006-01-02T15:04:05Z"),
 		Type:         "status",
 		Id:           proc.server.Id(),
 		Name:         proc.server.Name(),

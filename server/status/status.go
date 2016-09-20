@@ -25,7 +25,7 @@ type ServerStatus struct {
 	Clients      []ServerClientStatus
 	Queues       []QueueStatus
 	Topics       []QueueStatus
-	Time         string
+	Time         string `json:"utc"`
 	Type         string `json:"type"`
 	Id           string `json:"id"`
 	Name         string `json:"name"`
