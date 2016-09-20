@@ -26,9 +26,9 @@ type ServerStatus struct {
 	Queues       []QueueStatus
 	Topics       []QueueStatus
 	Time         string
-	Type         string `"json:type"`
-	Id           string `"json:id"`
-	Name         string `"json:name"`
+	Type         string `json:"type"`
+	Id           string `json:"id"`
+	Name         string `json:"name"`
 	Subtype      string `json:"subtype"`
 	Subsystem    string `json:"subsystem"`
 	ComputerName string `json:"computer"`

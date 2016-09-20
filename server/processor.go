@@ -71,7 +71,7 @@ func (proc *requestProcessor) createStatus() status.ServerStatus {
 		Name:         proc.server.Name(),
 		Version:      proc.server.Version(),
 		Subtype:      "server",
-		Subsystem:    "processor",
+		Subsystem:    "",
 		ComputerName: hostname,
 		UserName:     fmt.Sprintf("%d", os.Getuid()),
 		ProcessName:  os.Args[0],
