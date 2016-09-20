@@ -80,7 +80,7 @@ func (s *Subscription) SendTopicFrame(f *frame.Frame) {
 	// straight to the client without acknowledgement
 	//log.Debugf("SendTopicFrame: %v", f)
 
-	s.conn.writeChannel <- f
+	s.conn.Send(f)
 }
 
 func (s *Subscription) setSubscriptionHeader(f *frame.Frame) {
