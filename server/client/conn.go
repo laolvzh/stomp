@@ -102,11 +102,11 @@ func (c *Conn) GetStatus() status.ServerClientStatus {
 
 // Write a frame to the connection without requiring
 // any acknowledgement.
-func (c *Conn) Send(f *frame.Frame) {
+func (c *Conn) Send(f *frame.Frame, comment string) {
 	// Place the frame on the write channel. If the
 	// write channel is full, the caller will block.
 	if len(c.writeChannel) >= cap(c.writeChannel) {
-		c.log.Warnf("Send: to many write requests")
+		c.log.Warnf("Send: too many write requests for %s", comment)
 		c.log.Debugf("Send: drop %v", f)
 		return
 	}
@@ -119,7 +119,7 @@ func (c *Conn) Send(f *frame.Frame) {
 // will be based on the contents of the err parameter.
 func (c *Conn) SendError(err error) {
 	f := frame.New(frame.ERROR, frame.Message, err.Error())
-	c.Send(f) // will close after successful send
+	c.Send(f, "SendError") // will close after successful send
 }
 
 // Send an ERROR frame to the client and immediately. The error
