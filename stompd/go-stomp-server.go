@@ -42,6 +42,7 @@ type GlobalConf struct {
 	ListenAddr string
 	Id         string
 	Name       string
+	Heartbeat  int
 }
 
 // ConfFile is a file with all program options
@@ -49,7 +50,14 @@ type ConfFile struct {
 	Global GlobalConf
 }
 
-var globalOpt = ConfFile{Global: GlobalConf{ListenAddr: "localhost:61614"}}
+var globalOpt = ConfFile{
+	Global: GlobalConf{
+		ListenAddr: "localhost:61614",
+		Id:         "go-stomp-server",
+		Name:       "",
+		Heartbeat:  30,
+	},
+}
 
 func main() {
 
@@ -62,10 +70,9 @@ func main() {
 
 	conf.ReadGlobalConfig(&globalOpt, "GlobalConf")
 
-
 	a := auth.NewAuth()
 	s := server.NewServer(globalOpt.Global.Id, globalOpt.Global.Name, Version,
-		globalOpt.Global.ListenAddr, a)
+		globalOpt.Global.ListenAddr, globalOpt.Global.Heartbeat, a)
 
 	log.Error("-----------------------------------------------")
 	err := s.ListenAndServe()

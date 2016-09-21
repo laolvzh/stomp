@@ -50,7 +50,6 @@ type Server struct {
 	id            string
 	name          string
 	version       string
-	Logger        slf.StructuredLogger
 	Addr          string        // TCP address to listen on, DefaultAddr if empty
 	Authenticator Authenticator // Authenticates login/passcodes. If nil no authentication is performed
 	QueueStorage  QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
@@ -69,12 +68,13 @@ func (s *Server) Version() string {
 	return s.version
 }
 
-func NewServer(id string, name string, version string, addr string, a Authenticator) *Server {
+func NewServer(id string, name string, version string, addr string, heartBeat int, a Authenticator) *Server {
 	return &Server{
 		id:            id,
 		name:          name,
 		version:       version,
 		Addr:          addr,
+		HeartBeat:     time.Second * time.Duration(heartBeat),
 		Authenticator: a,
 	}
 }
