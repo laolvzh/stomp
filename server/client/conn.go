@@ -247,12 +247,12 @@ func (c *Conn) processLoop() {
 	c.stateFunc = connecting
 
 	c.log.Debugf("processLoop: %s", c.writeTimeout)
+	var timerChannel <-chan time.Time
+ 	var timer *time.Timer
 
 	for {
-		var timerChannel <-chan time.Time
-		var timer *time.Timer
 
-		if c.writeTimeout > 0 {
+		if c.writeTimeout > 0 && timer == nil {
 			timer = time.NewTimer(c.writeTimeout)
 			timerChannel = timer.C
 		}
@@ -264,6 +264,7 @@ func (c *Conn) processLoop() {
 				// exit go-routine (after cleaning up)
 				return
 			}
+			//c.log.Debugf("receive writeChannel:%v", f.Command)
 
 			// have a frame to the client with
 			// no acknowledgement required (topic)
@@ -300,6 +301,7 @@ func (c *Conn) processLoop() {
 				// exit go-routine (after cleaning up)
 				return
 			}
+			//c.log.Debugf("receive readChannel:%v", f.Command)
 
 			// Just received a frame from the client.
 			// Validate the frame, checking for mandatory
@@ -327,6 +329,7 @@ func (c *Conn) processLoop() {
 				// so exit go-routine (after cleaning up)
 				return
 			}
+			//c.log.Debugf("receive subChannel:%v", sub.id)
 
 			// have a frame to the client which requires
 			// acknowledgement to the upper layer
@@ -373,6 +376,9 @@ func (c *Conn) processLoop() {
 
 		case _ = <-timerChannel:
 			// write a heart-beat
+			timer.Stop()
+			timer = nil
+			timerChannel = nil
 			c.log.Debug("write heart-beat")
 			err := c.writer.Write(nil)
 			if err != nil {
