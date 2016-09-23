@@ -19,7 +19,7 @@ const reconLimit = 700
 
 // Default time span to add to read/write heart-beat timeouts
 // to avoid premature disconnections due to network latency.
-const DefaultHeartBeatError = 5 * time.Second
+const DefaultHeartBeatError = 15 * time.Second
 
 var allConns = make([]*Conn, 0)
 
