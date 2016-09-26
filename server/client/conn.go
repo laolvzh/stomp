@@ -392,7 +392,7 @@ func (c *Conn) processLoop() {
 // unsubscribing all subscriptions with the upper layer, and
 // re-queueing all unacknowledged messages to the upper layer.
 func (c *Conn) cleanupConn() {
-	c.log.Info("cleanupConn")
+	c.log.Debug("cleanupConn")
 	// clean up any pending transactions
 	c.txStore.Init()
 
@@ -437,7 +437,7 @@ func (c *Conn) cleanupConn() {
 // do not get acknowledged, and are either topic MESSAGE
 // frames or ERROR frames.
 func (c *Conn) discardWriteChannelFrames() {
-	c.log.Info("discardWriteChannelFrames")
+	c.log.Debugf("discardWriteChannelFrames: %d", len(c.writeChannel))
 	for finished := false; !finished; {
 		select {
 		case _, ok := <-c.writeChannel:
@@ -452,7 +452,7 @@ func (c *Conn) discardWriteChannelFrames() {
 }
 
 func (c *Conn) cleanupSubChannel() {
-	c.log.Info("cleanupSubChannel")
+	c.log.Debugf("cleanupSubChannel: %d", len(c.subChannel))
 	// Read the subscription channel until it is empty.
 	// Each frame should be requeued to the upper layer.
 	for finished := false; !finished; {
