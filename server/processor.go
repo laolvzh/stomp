@@ -161,6 +161,11 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 					queue := proc.qm.Find(destination)
 					queue.Requeue(r.Frame)
 				}
+
+			case client.ConnectedOp:
+				//register connection
+				proc.connections[r.Conn.Id()] = r.Conn
+
 			case client.DisconnectedOp:
 				delete(proc.connections, r.Conn.Id())
 			}
@@ -199,8 +204,11 @@ func (proc *requestProcessor) Listen(l net.Listener) {
 		timeout = 0
 		// TODO: need to pass Server to connection so it has access to
 		// configuration parameters.
-		conn := client.NewConn(config, rw, proc.ch, conn_id)
-		proc.connections[conn_id] = conn
+		client.NewConn(config, rw, proc.ch, conn_id)
+		//conn := client.NewConn(config, rw, proc.ch, conn_id)
+		//notify about new connect
+		//proc.ch <- Request{Op: ConnectedOp, Conn: c}
+		//proc.connections[conn_id] = conn
 		conn_id++
 	}
 	// This is no longer required for go 1.1
