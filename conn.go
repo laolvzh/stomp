@@ -15,7 +15,8 @@ import (
 
 var log = slf.WithContext("server")
 
-const reconLimit = 700
+//const reconLimit = 700
+const secReconLimit = 600
 
 // Default time span to add to read/write heart-beat timeouts
 // to avoid premature disconnections due to network latency.
@@ -77,13 +78,12 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 			log.Infof("Created a connection: %s", cnet.LocalAddr())
 			break
 		} else {
-			if numOfRecon == reconLimit {
-				return nil, err
-			}
 
-			randomAdd := int(0.1*float64(secToRecon)) + 1
-			secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
-			//log.Debugf("secToRecon=%d\n", secToRecon)
+			if secToRecon < secReconLimit {
+				randomAdd := int(0.1*float64(secToRecon)) + 1
+				secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
+				//log.Debugf("secToRecon=%d\n", secToRecon)
+			}
 			time.Sleep(time.Second * time.Duration(secToRecon))
 			numOfRecon++
 			continue
@@ -324,13 +324,10 @@ func processLoop(c *Conn, writer *frame.Writer) {
 						return
 					}
 
-					if numOfRecon == reconLimit {
-						log.Errorf("Could not connect to server %s: timeout", c.rec.addr)
-						c.MustDisconnect()
-						return
+					if secToRecon < secReconLimit {
+						randomAdd := int(0.1*float64(secToRecon)) + 1
+						secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
 					}
-					randomAdd := int(0.1*float64(secToRecon)) + 1
-					secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
 					//log.Debugf("secToRecon=%d\n", secToRecon)
 					time.Sleep(time.Second * time.Duration(secToRecon))
 					numOfRecon++
