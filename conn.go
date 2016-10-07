@@ -82,7 +82,7 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 			if secToRecon < secReconLimit {
 				randomAdd := int(0.1*float64(secToRecon)) + 1
 				secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
-				//log.Debugf("secToRecon=%d\n", secToRecon)
+				log.Infof("Seconds for reconnection=%d\n", secToRecon)
 			}
 			time.Sleep(time.Second * time.Duration(secToRecon))
 			numOfRecon++
@@ -328,7 +328,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 						randomAdd := int(0.1*float64(secToRecon)) + 1
 						secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
 					}
-					//log.Debugf("secToRecon=%d\n", secToRecon)
+					log.Infof("Seconds for reconnection=%d\n", secToRecon)
 					time.Sleep(time.Second * time.Duration(secToRecon))
 					numOfRecon++
 
@@ -773,7 +773,7 @@ func (c *Conn) reconnect() error {
 			(*currSub).subPtr.conn = c
 		}
 	}
-	log.Debug("Recconnecting done. ")
+	log.Debug("Reconnecting done. ")
 
 	return nil
 }
