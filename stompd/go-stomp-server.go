@@ -43,6 +43,7 @@ type GlobalConf struct {
 	Id         string
 	Name       string
 	Heartbeat  int
+	Status     int
 }
 
 // ConfFile is a file with all program options
@@ -56,6 +57,7 @@ var globalOpt = ConfFile{
 		Id:         "go-stomp-server",
 		Name:       "",
 		Heartbeat:  30,
+		Status:     30,
 	},
 }
 
@@ -72,7 +74,7 @@ func main() {
 
 	a := auth.NewAuth()
 	s := server.NewServer(globalOpt.Global.Id, globalOpt.Global.Name, Version,
-		globalOpt.Global.ListenAddr, globalOpt.Global.Heartbeat, a)
+		globalOpt.Global.ListenAddr, globalOpt.Global.Heartbeat, globalOpt.Global.Status, a)
 
 	log.Error("-----------------------------------------------")
 	err := s.ListenAndServe()

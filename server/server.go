@@ -54,6 +54,7 @@ type Server struct {
 	Authenticator Authenticator // Authenticates login/passcodes. If nil no authentication is performed
 	QueueStorage  QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
 	HeartBeat     time.Duration // Preferred value for heart-beat read/write timeout, if zero, then DefaultHeartBeat.
+	Status        time.Duration // Send status message timer interval
 }
 
 func (s *Server) Id() string {
@@ -68,13 +69,14 @@ func (s *Server) Version() string {
 	return s.version
 }
 
-func NewServer(id string, name string, version string, addr string, heartBeat int, a Authenticator) *Server {
+func NewServer(id string, name string, version string, addr string, heartBeat int, status int, a Authenticator) *Server {
 	return &Server{
 		id:            id,
 		name:          name,
 		version:       version,
 		Addr:          addr,
 		HeartBeat:     time.Second * time.Duration(heartBeat),
+		Status:        time.Second * time.Duration(status),
 		Authenticator: a,
 	}
 }

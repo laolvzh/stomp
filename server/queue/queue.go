@@ -11,9 +11,11 @@ import (
 
 // Queue for storing message frames.
 type Queue struct {
-	destination string
-	qstore      Storage
-	subs        *client.SubscriptionList
+	destination  string
+	qstore       Storage
+	totalCount   int64
+	currentCount int
+	subs         *client.SubscriptionList
 }
 
 // Create a new queue -- called from the queue manager only.
@@ -25,12 +27,16 @@ func newQueue(destination string, qstore Storage) *Queue {
 	}
 }
 
-func (q *Queue) GetStatus() status.QueueStatus {
-	return status.QueueStatus{
+func (q *Queue) GetStatus() *status.QueueStatus {
+	queueStatus := &status.QueueStatus{
 		Dest:              q.destination,
 		MessageCount:      q.qstore.Count(q.destination),
+		TotalCount:        q.totalCount,
+		CurrentCount:      q.currentCount,
 		SubscriptionCount: q.subs.Len(),
 	}
+	q.currentCount = 0
+	return queueStatus
 }
 
 // Add a subscription to a queue. The subscription is removed
@@ -65,6 +71,8 @@ func (q *Queue) Unsubscribe(sub *client.Subscription) {
 // a message is available.
 func (q *Queue) Enqueue(f *frame.Frame) error {
 	// find a subscription ready to receive the frame
+	q.totalCount++
+	q.currentCount++
 	sub := q.subs.Get()
 	if sub == nil {
 		// no subscription available, add to the queue

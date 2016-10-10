@@ -14,8 +14,10 @@ import (
 // In contrast to a queue, when a message is sent to a topic,
 // that message is transmitted to all subscribed clients.
 type Topic struct {
-	destination string
-	subs        *list.List
+	destination  string
+	totalCount   int64
+	currentCount int
+	subs         *list.List
 }
 
 // Create a new topic -- called from the topic manager only.
@@ -26,15 +28,16 @@ func newTopic(destination string) *Topic {
 	}
 }
 
-
-func (t *Topic) GetStatus() status.QueueStatus {
-	return status.QueueStatus{
-		Dest: t.destination,
-		MessageCount: 0,
+func (t *Topic) GetStatus() *status.TopicStatus {
+	topicStatus := &status.TopicStatus{
+		Dest:              t.destination,
+		TotalCount:        t.totalCount,
+		CurrentCount:      t.currentCount,
 		SubscriptionCount: t.subs.Len(),
 	}
+	t.currentCount = 0
+	return topicStatus
 }
-
 
 // Subscribe adds a subscription to a topic. Any message sent to the
 // topic will be transmitted to the subscription's client until
@@ -56,6 +59,8 @@ func (t *Topic) Unsubscribe(sub Subscription) {
 // Enqueue send a message to the topic. All subscriptions receive a copy
 // of the message.
 func (t *Topic) Enqueue(f *frame.Frame) {
+	t.totalCount++
+	t.currentCount++
 	switch t.subs.Len() {
 	case 0:
 	// no subscription, so do nothing

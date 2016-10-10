@@ -22,12 +22,20 @@ import (
 //}
 
 type requestProcessor struct {
-	server      *Server
-	ch          chan client.Request
-	tm          *topic.Manager
-	qm          *queue.Manager
-	connections map[int64]*client.Conn
-	stop        bool // has stop been requested
+	server                 *Server
+	ch                     chan client.Request
+	tm                     *topic.Manager
+	qm                     *queue.Manager
+	connections            map[int64]*client.Conn
+	stop                   bool // has stop been requested
+	connectCount           int
+	disconnectCount        int
+	enqueueCount           int
+	requeueCount           int
+	currentConnectCount    int
+	currentDisconnectCount int
+	currentEnqueueCount    int
+	currentRequeueCount    int
 }
 
 func newRequestProcessor(server *Server) *requestProcessor {
@@ -47,43 +55,74 @@ func newRequestProcessor(server *Server) *requestProcessor {
 	return proc
 }
 
-func (proc *requestProcessor) createStatus() status.ServerStatus {
+func (proc *requestProcessor) createStatus() *status.ServerStatus {
 	//clients
-	clients := make([]status.ServerClientStatus, 0)
+	clients := make([]*status.ServerClientStatus, 0)
 	for _, conn := range proc.connections {
 		clients = append(clients, conn.GetStatus())
 	}
 
 	//
+	totalQueueCount := 0
+	totalCurrentCount := 0
 	queues := proc.qm.GetStatus()
+
+	for _, qs := range queues {
+		totalQueueCount += qs.MessageCount
+		totalCurrentCount += qs.CurrentCount
+	}
+
 	//
 	topics := proc.tm.GetStatus()
+	for _, ts := range topics {
+		totalCurrentCount += ts.CurrentCount
+	}
 
 	hostname, _ := os.Hostname()
 
-	return status.ServerStatus{
-		Clients:      clients,
-		Queues:       queues,
-		Topics:       topics,
-		Time:         time.Now().Format(time.RFC3339),
-		Type:         "status",
-		Id:           proc.server.Id(),
-		Name:         proc.server.Name(),
-		Version:      proc.server.Version(),
-		Subtype:      "server",
-		Subsystem:    "",
-		ComputerName: hostname,
-		UserName:     fmt.Sprintf("%d", os.Getuid()),
-		ProcessName:  os.Args[0],
-		Pid:          os.Getpid(),
-		Severity:     20,
+	rate := float64(proc.currentEnqueueCount+proc.currentRequeueCount) / proc.server.Status.Seconds()
+
+	serverStatus := &status.ServerStatus{
+		Clients:                clients,
+		Queues:                 queues,
+		Topics:                 topics,
+		Time:                   time.Now().Format(time.RFC3339),
+		Type:                   "status",
+		Id:                     proc.server.Id(),
+		Name:                   proc.server.Name(),
+		Version:                proc.server.Version(),
+		Subtype:                "server",
+		Subsystem:              "",
+		ComputerName:           hostname,
+		UserName:               fmt.Sprintf("%d", os.Getuid()),
+		ProcessName:            os.Args[0],
+		Pid:                    os.Getpid(),
+		Severity:               20,
+		EnqueueCount:           proc.enqueueCount,
+		RequeueCount:           proc.requeueCount,
+		ConnectCount:           proc.connectCount,
+		DisconnectCount:        proc.disconnectCount,
+		CurrentEnqueueCount:    proc.currentEnqueueCount,
+		CurrentRequeueCount:    proc.currentRequeueCount,
+		CurrentConnectCount:    proc.currentConnectCount,
+		CurrentDisconnectCount: proc.currentDisconnectCount,
+		TotalQueueCount:        totalQueueCount,
+		TotalCurrentCount:      totalCurrentCount,
+		MessageRate:            rate,
 	}
+
+	proc.currentEnqueueCount = 0
+	proc.currentRequeueCount = 0
+	proc.currentConnectCount = 0
+	proc.currentDisconnectCount = 0
+
+	return serverStatus
 }
 
 func (proc *requestProcessor) createStatusFrame() *frame.Frame {
 	f := frame.New("MESSAGE", frame.ContentType, "application/json")
 	status := proc.createStatus()
-	//log.Debugf("status %v", status)
+	log.Debugf("status %+v", status)
 	//bytes, err := json.MarshalIndent(status, "", "  ")
 	bytes, err := json.Marshal(status)
 	//log.Debugf("createStatusFrame %v", string(bytes))
@@ -106,7 +145,7 @@ func (proc *requestProcessor) sendStatusFrame() {
 func (proc *requestProcessor) Serve(l net.Listener) error {
 	go proc.Listen(l)
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(proc.server.Status)
 
 	for {
 		select {
@@ -140,6 +179,8 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 					// should not happen, already checked in lower layer
 					panic("missing destination")
 				}
+				proc.enqueueCount++
+				proc.currentEnqueueCount++
 
 				if isQueueDestination(destination) {
 					queue := proc.qm.Find(destination)
@@ -155,6 +196,8 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 					// should not happen, already checked in lower layer
 					panic("missing destination")
 				}
+				proc.requeueCount++
+				proc.currentRequeueCount++
 
 				// only requeue to queues, should never happen for topics
 				if isQueueDestination(destination) {
@@ -164,9 +207,13 @@ func (proc *requestProcessor) Serve(l net.Listener) error {
 
 			case client.ConnectedOp:
 				//register connection
+				proc.connectCount++
+				proc.currentConnectCount++
 				proc.connections[r.Conn.Id()] = r.Conn
 
 			case client.DisconnectedOp:
+				proc.disconnectCount++
+				proc.currentDisconnectCount++
 				delete(proc.connections, r.Conn.Id())
 			}
 		}

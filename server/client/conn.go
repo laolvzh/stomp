@@ -81,7 +81,7 @@ func (c *Conn) Id() int64 {
 }
 
 //get client connection status
-func (c *Conn) GetStatus() status.ServerClientStatus {
+func (c *Conn) GetStatus() *status.ServerClientStatus {
 	subscriptions := make([]status.ServerClientSubscriptionStatus, 0)
 	for _, sub := range c.subs {
 		subscriptions = append(subscriptions, status.ServerClientSubscriptionStatus{
@@ -89,7 +89,7 @@ func (c *Conn) GetStatus() status.ServerClientStatus {
 			Dest: sub.Destination(),
 		})
 	}
-	return status.ServerClientStatus{
+	return &status.ServerClientStatus{
 		ID:            c.id,
 		Address:       c.rw.RemoteAddr().String(),
 		Login:         c.login,
@@ -248,7 +248,7 @@ func (c *Conn) processLoop() {
 
 	c.log.Debugf("processLoop: %s", c.writeTimeout)
 	var timerChannel <-chan time.Time
- 	var timer *time.Timer
+	var timer *time.Timer
 
 	for {
 
