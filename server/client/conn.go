@@ -26,28 +26,30 @@ const maxPendingReads = 16
 
 // Represents a connection with the STOMP client.
 type Conn struct {
-	config         Config
-	rw             net.Conn                            // Network connection to client
-	writer         *frame.Writer                       // Writes STOMP frames directly to the network connection
-	requestChannel chan Request                        // For sending requests to upper layer
-	subChannel     chan *Subscription                  // Receives subscription messages for client
-	writeChannel   chan *frame.Frame                   // Receives unacknowledged (topic) messages for client
-	readChannel    chan *frame.Frame                   // Receives frames from the client
-	stateFunc      func(c *Conn, f *frame.Frame) error // State processing function
-	writeTimeout   time.Duration                       // Heart beat write timeout
-	version        stomp.Version                       // Negotiated STOMP protocol version
-	id             int64
-	login          string
-	peer           string
-	peer_name      string
-	time           time.Time
-	closed         bool                     // Is the connection closed
-	txStore        *txStore                 // Stores transactions in progress
-	lastMsgId      uint64                   // last message-id value
-	subList        *SubscriptionList        // List of subscriptions requiring acknowledgement
-	subs           map[string]*Subscription // All subscriptions, keyed by id
-	validator      stomp.Validator          // For validating STOMP frames
-	log            slf.StructuredLogger
+	config               Config
+	rw                   net.Conn                            // Network connection to client
+	writer               *frame.Writer                       // Writes STOMP frames directly to the network connection
+	requestChannel       chan Request                        // For sending requests to upper layer
+	subChannel           chan *Subscription                  // Receives subscription messages for client
+	writeChannel         chan *frame.Frame                   // Receives unacknowledged (topic) messages for client
+	readChannel          chan *frame.Frame                   // Receives frames from the client
+	stateFunc            func(c *Conn, f *frame.Frame) error // State processing function
+	writeTimeout         time.Duration                       // Heart beat write timeout
+	version              stomp.Version                       // Negotiated STOMP protocol version
+	id                   int64
+	login                string
+	peer                 string
+	peer_name            string
+	time                 time.Time
+	closed               bool                     // Is the connection closed
+	txStore              *txStore                 // Stores transactions in progress
+	lastMsgId            uint64                   // last message-id value
+	subList              *SubscriptionList        // List of subscriptions requiring acknowledgement
+	subs                 map[string]*Subscription // All subscriptions, keyed by id
+	validator            stomp.Validator          // For validating STOMP frames
+	log                  slf.StructuredLogger
+	skippedWrites        int64
+	currentSkippedWrites int
 }
 
 // Creates a new client connection. The config parameter contains
@@ -89,15 +91,20 @@ func (c *Conn) GetStatus() *status.ServerClientStatus {
 			Dest: sub.Destination(),
 		})
 	}
-	return &status.ServerClientStatus{
-		ID:            c.id,
-		Address:       c.rw.RemoteAddr().String(),
-		Login:         c.login,
-		Peer:          c.peer,
-		PeerName:      c.peer_name,
-		Time:          c.time.Format("2006-01-02T15:04:05"),
-		Subscriptions: subscriptions,
+	connStatus := &status.ServerClientStatus{
+		ID:                   c.id,
+		Address:              c.rw.RemoteAddr().String(),
+		Login:                c.login,
+		Peer:                 c.peer,
+		PeerName:             c.peer_name,
+		Time:                 c.time.Format("2006-01-02T15:04:05"),
+		Subscriptions:        subscriptions,
+		SkippedWrites:        c.skippedWrites,
+		CurrentSkippedWrites: c.currentSkippedWrites,
 	}
+	c.currentSkippedWrites = 0
+
+	return connStatus
 }
 
 // Write a frame to the connection without requiring
@@ -106,6 +113,7 @@ func (c *Conn) Send(f *frame.Frame, comment string) {
 	// Place the frame on the write channel. If the
 	// write channel is full, the caller will block.
 	if len(c.writeChannel) >= cap(c.writeChannel) {
+		c.skippedWrites++
 		c.log.Warnf("Send: too many write requests for %s", comment)
 		c.log.Debugf("Send: drop %v", f)
 		return
@@ -231,7 +239,7 @@ func (c *Conn) readLoop() {
 }
 
 func (c *Conn) sendProcessorRequest(r Request) {
-	if len(c.requestChannel) >= 127 {
+	if len(c.requestChannel) >= cap(c.requestChannel) {
 		c.log.Warnf("%v too many requests", r)
 		return
 	}

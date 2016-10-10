@@ -57,9 +57,12 @@ func newRequestProcessor(server *Server) *requestProcessor {
 
 func (proc *requestProcessor) createStatus() *status.ServerStatus {
 	//clients
+	totalCurrentSkippedWrites := 0
 	clients := make([]*status.ServerClientStatus, 0)
 	for _, conn := range proc.connections {
-		clients = append(clients, conn.GetStatus())
+		connStatus := conn.GetStatus()
+		totalCurrentSkippedWrites += connStatus.CurrentSkippedWrites
+		clients = append(clients, connStatus)
 	}
 
 	//
@@ -83,32 +86,33 @@ func (proc *requestProcessor) createStatus() *status.ServerStatus {
 	rate := float64(proc.currentEnqueueCount+proc.currentRequeueCount) / proc.server.Status.Seconds()
 
 	serverStatus := &status.ServerStatus{
-		Clients:                clients,
-		Queues:                 queues,
-		Topics:                 topics,
-		Time:                   time.Now().Format(time.RFC3339),
-		Type:                   "status",
-		Id:                     proc.server.Id(),
-		Name:                   proc.server.Name(),
-		Version:                proc.server.Version(),
-		Subtype:                "server",
-		Subsystem:              "",
-		ComputerName:           hostname,
-		UserName:               fmt.Sprintf("%d", os.Getuid()),
-		ProcessName:            os.Args[0],
-		Pid:                    os.Getpid(),
-		Severity:               20,
-		EnqueueCount:           proc.enqueueCount,
-		RequeueCount:           proc.requeueCount,
-		ConnectCount:           proc.connectCount,
-		DisconnectCount:        proc.disconnectCount,
-		CurrentEnqueueCount:    proc.currentEnqueueCount,
-		CurrentRequeueCount:    proc.currentRequeueCount,
-		CurrentConnectCount:    proc.currentConnectCount,
-		CurrentDisconnectCount: proc.currentDisconnectCount,
-		TotalQueueCount:        totalQueueCount,
-		TotalCurrentCount:      totalCurrentCount,
-		MessageRate:            rate,
+		Clients:                   clients,
+		Queues:                    queues,
+		Topics:                    topics,
+		Time:                      time.Now().Format(time.RFC3339),
+		Type:                      "status",
+		Id:                        proc.server.Id(),
+		Name:                      proc.server.Name(),
+		Version:                   proc.server.Version(),
+		Subtype:                   "server",
+		Subsystem:                 "",
+		ComputerName:              hostname,
+		UserName:                  fmt.Sprintf("%d", os.Getuid()),
+		ProcessName:               os.Args[0],
+		Pid:                       os.Getpid(),
+		Severity:                  20,
+		EnqueueCount:              proc.enqueueCount,
+		RequeueCount:              proc.requeueCount,
+		ConnectCount:              proc.connectCount,
+		DisconnectCount:           proc.disconnectCount,
+		CurrentEnqueueCount:       proc.currentEnqueueCount,
+		CurrentRequeueCount:       proc.currentRequeueCount,
+		CurrentConnectCount:       proc.currentConnectCount,
+		CurrentDisconnectCount:    proc.currentDisconnectCount,
+		TotalQueueCount:           totalQueueCount,
+		TotalCurrentCount:         totalCurrentCount,
+		TotalCurrentSkippedWrites: totalCurrentSkippedWrites,
+		MessageRate:               rate,
 	}
 
 	proc.currentEnqueueCount = 0
