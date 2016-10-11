@@ -114,6 +114,7 @@ func (c *Conn) Send(f *frame.Frame, comment string) {
 	// write channel is full, the caller will block.
 	if len(c.writeChannel) >= cap(c.writeChannel) {
 		c.skippedWrites++
+		c.currentSkippedWrites++
 		c.log.Warnf("Send: too many write requests for %s", comment)
 		c.log.Debugf("Send: drop %v", f)
 		return
