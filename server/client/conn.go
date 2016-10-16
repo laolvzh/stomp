@@ -328,6 +328,7 @@ func (c *Conn) processLoop() {
 			// according to the current state of the connection.
 			err := c.stateFunc(c, f)
 			if err != nil {
+				c.log.Errorf("error %s for frame %s", err.Error(), f.String())
 				c.sendErrorImmediately(err, f)
 				return
 			}
