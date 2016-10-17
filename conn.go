@@ -13,10 +13,10 @@ import (
 	"github.com/ventu-io/slf"
 )
 
-var log = slf.WithContext("server")
+var log = slf.WithContext("stomp")
 
 //const reconLimit = 700
-const secReconLimit = 600
+const secReconLimit = 120
 
 // Default time span to add to read/write heart-beat timeouts
 // to avoid premature disconnections due to network latency.
@@ -40,12 +40,13 @@ type Conn struct {
 	writeTimeout time.Duration
 	closed       bool
 	options      *connOptions
-	subs         []**SubStr
+	subs         []**subStr
 	rec          reconnectStr
 	connInfo     string
+	comment      string
 }
 
-type SubStr struct {
+type subStr struct {
 	subPtr *Subscription
 }
 
@@ -69,21 +70,24 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 	var cnet net.Conn
 
 	rand.Seed(time.Now().UnixNano())
-	var secToRecon, numOfRecon = 1, 0
+	var secToRecon = 10
+	var numOfRecon = 0
 
 	for {
+		log.Infof("Dial: connecting")
 		var err error
 		cnet, err = net.Dial(network, addr)
 		if err == nil {
-			log.Infof("Created a connection: %s", cnet.LocalAddr())
+			log.Infof("Dial: created a connection: %s", cnet.LocalAddr())
 			break
 		} else {
+			log.Errorf("Dial: connect error %s", err.Error())
 
 			if secToRecon < secReconLimit {
 				randomAdd := int(0.1*float64(secToRecon)) + 1
 				secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
-				log.Infof("Seconds for reconnection=%d\n", secToRecon)
 			}
+			log.Infof("Dial: sleep for %d seconds", secToRecon)
 			time.Sleep(time.Second * time.Duration(secToRecon))
 			numOfRecon++
 			continue
@@ -264,6 +268,17 @@ func readLoop(c *Conn, reader *frame.Reader) {
 	}
 }
 
+func writeHeartbeat(writer *frame.Writer, channels map[string]chan *frame.Frame) error {
+	//log.Debugf("sending heart-beat")
+	err := writer.Write(nil)
+	if err != nil {
+		log.Errorf("writeHeartbeat: Write error %s", err)
+		sendError(channels, err)
+		return err
+	}
+	return nil
+}
+
 // processLoop is a goroutine that handles io with
 // the server.
 func processLoop(c *Conn, writer *frame.Writer) {
@@ -274,48 +289,57 @@ func processLoop(c *Conn, writer *frame.Writer) {
 	var writeTimeoutChannel <-chan time.Time
 	var writeTimer *time.Timer
 
+	log.Debugf("processLoop %s %v %v", c.connInfo, c.readTimeout, c.writeTimeout)
+
 	for {
+		//log.Debugf("cycle start %s", c.connInfo)
 		if c.readTimeout > 0 && readTimer == nil {
-			readTimer := time.NewTimer(c.readTimeout)
+			//log.Debugf("readTimeout %s %v", c.connInfo, c.readTimeout)
+			readTimer = time.NewTimer(c.readTimeout)
 			readTimeoutChannel = readTimer.C
 		}
+		/*if readTimer != nil {
+			log.Debugf("cycle start %s readTimer: %v %v", c.connInfo, *readTimer)
+		}*/
+
 		if c.writeTimeout > 0 && writeTimer == nil {
-			writeTimer := time.NewTimer(c.writeTimeout)
+			//log.Debugf("writeTimeout %s %v", c.connInfo, c.writeTimeout)
+			writeTimer = time.NewTimer(c.writeTimeout)
 			writeTimeoutChannel = writeTimer.C
 		}
+
+		/*if writeTimer != nil {
+			log.Debugf("cycle start %s writeTimer: %v %v", c.connInfo, *writeTimer)
+		}*/
 
 		select {
 		case <-readTimeoutChannel:
 			// read timeout, close the connection
+			log.Errorf("read timeout %s", c.connInfo)
 			err := newErrorMessage("read timeout")
 			sendError(channels, err)
 			return
 
 		case <-writeTimeoutChannel:
 			// write timeout, send a heart-beat frame
-			err := writer.Write(nil)
+			//log.Debugf("writeTimeoutChannel 1 %s", c.connInfo)
+			err := writeHeartbeat(writer, channels)
 			if err != nil {
-				sendError(channels, err)
 				return
 			}
 			writeTimer = nil
 			writeTimeoutChannel = nil
 
 		case f, ok := <-c.readCh:
-			// stop the read timer
-			if readTimer != nil {
-				readTimer.Stop()
-				readTimer = nil
-				readTimeoutChannel = nil
-			}
 
 			if !ok {
+				log.Errorf("error read %s", c.connInfo)
 				err := newErrorMessage("connection closed")
-				//log.Debug("!ok readCh")
 				c.closed = true
 				sendError(channels, err)
 
-				var secToRecon, numOfRecon = 1, 0
+				var secToRecon = 15
+				var numOfRecon = 0
 				rand.Seed(time.Now().UnixNano())
 
 				for {
@@ -323,20 +347,28 @@ func processLoop(c *Conn, writer *frame.Writer) {
 					if err == nil {
 						return
 					}
+					log.Errorf("Reconnect error %s", err.Error())
 
 					if secToRecon < secReconLimit {
 						randomAdd := int(0.1*float64(secToRecon)) + 1
 						secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
 					}
-					log.Infof("Seconds for reconnection=%d\n", secToRecon)
+					log.Infof("Reconnecting: Retry: %d sleep for %d seconds", numOfRecon, secToRecon)
 					time.Sleep(time.Second * time.Duration(secToRecon))
 					numOfRecon++
 
 					writeTimer = nil
 					writeTimeoutChannel = nil
-					continue
-
 				}
+			}
+
+			//log.Debugf("readCh %s %v ", c.connInfo, f)
+
+			// stop the read timer
+			if readTimer != nil {
+				readTimer.Stop()
+				readTimer = nil
+				readTimeoutChannel = nil
 			}
 
 			if f == nil {
@@ -377,12 +409,13 @@ func processLoop(c *Conn, writer *frame.Writer) {
 					if ch, ok := channels[id]; ok {
 						ch <- f
 					} else {
-						log.Errorf("ignored MESSAGE for subscription %s\n", id)
+						log.Errorf("ignored MESSAGE for subscription %s", id)
 					}
 				}
 			}
 
 		case req, ok := <-c.writeCh:
+			//log.Debugf("writeCh %s %v", c.connInfo, req)
 			// stop the write timeout
 			if writeTimer != nil {
 				writeTimer.Stop()
@@ -409,7 +442,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 			case frame.SUBSCRIBE:
 				//log.Debug("subscribing")
 				id, _ := req.Frame.Header.Contains(frame.Id)
-				//	log.Debugf("frame.SUBSCRIBE: id=%s\n", id)
+				//	log.Debugf("frame.SUBSCRIBE: id=%s", id)
 				channels[id] = req.C
 			case frame.UNSUBSCRIBE:
 				id, _ := req.Frame.Header.Contains(frame.Id)
@@ -609,7 +642,7 @@ func (c *Conn) Subscribe(destination string, ack AckMode, opts ...func(*frame.Fr
 		C:     frameCh,
 	}
 
-	sub := &SubStr{
+	sub := &subStr{
 		subPtr: &Subscription{
 			id:             id,
 			destination:    destination,
@@ -719,10 +752,11 @@ func (c *Conn) createAckNackFrame(msg *Message, ack bool) (*frame.Frame, error) 
 
 // Reconnect is a function for reconnecting
 func (c *Conn) reconnect() error {
-	log.Error("Trying to reconnect... ")
+	log.Errorf("Trying to reconnect")
 
 	var err error
 	var i = 0
+	var cnet net.Conn
 
 	//log.Debugf("(len(allConns)=%d", len(allConns))
 
@@ -732,7 +766,7 @@ func (c *Conn) reconnect() error {
 		//log.Warn("currConn.closed != true")
 		c.conn.Close()
 	}
-	c.conn, err = net.Dial(c.rec.network, c.rec.addr)
+	cnet, err = net.Dial(c.rec.network, c.rec.addr)
 	if err != nil {
 		//return nil, err
 		//log.Errorf("reconnect(): Dial err - %s", err.Error())
@@ -741,6 +775,8 @@ func (c *Conn) reconnect() error {
 
 	c.readCh = make(chan *frame.Frame, 8)
 	c.writeCh = make(chan writeRequest, 8)
+	c.conn = cnet
+	c.connInfo = cnet.LocalAddr().String()
 
 	c, err = Connect(c)
 	//log.Debug("recon(): c.closed = false")
@@ -773,7 +809,7 @@ func (c *Conn) reconnect() error {
 			(*currSub).subPtr.conn = c
 		}
 	}
-	log.Debug("Reconnecting done. ")
+	log.Debug("Reconnected")
 
 	return nil
 }
