@@ -2,6 +2,7 @@ package stomp
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -42,6 +43,7 @@ type Conn struct {
 	options      *connOptions
 	subs         []**subStr
 	rec          reconnectStr
+	id           int
 	connInfo     string
 	comment      string
 }
@@ -103,12 +105,14 @@ func Dial(network, addr string, opts ...func(*Conn) error) (*Conn, error) {
 	// Add option to set host and make it the first option in list,
 	// so that if host has been explicitly specified it will override.
 	opts = append([](func(*Conn) error){ConnOpt.Host(host)}, opts...)
+	id := len(allConns)
 
 	c := &Conn{
 		conn:     cnet,
-		connInfo: cnet.LocalAddr().String(),
+		connInfo: fmt.Sprintf("[%d][%s]", id, cnet.LocalAddr().String()),
 		readCh:   make(chan *frame.Frame, 8),
 		writeCh:  make(chan writeRequest, 8),
+		id:       len(allConns),
 		rec: reconnectStr{
 			addr:    addr,
 			network: network,
@@ -776,7 +780,7 @@ func (c *Conn) reconnect() error {
 	c.readCh = make(chan *frame.Frame, 8)
 	c.writeCh = make(chan writeRequest, 8)
 	c.conn = cnet
-	c.connInfo = cnet.LocalAddr().String()
+	c.connInfo = fmt.Sprintf("[%d][%s]", c.id, cnet.LocalAddr().String())
 
 	c, err = Connect(c)
 	//log.Debug("recon(): c.closed = false")
