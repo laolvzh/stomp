@@ -24,8 +24,8 @@ import (
 
 var configFile string
 
+// These fields are populated by govvv
 var (
-	// These fields are populated by govvv
 	BuildDate  string
 	GitCommit  string
 	GitBranch  string
@@ -43,13 +43,15 @@ type ConfFile struct {
 
 var globalOpt = ConfFile{
 	Global: server.ServerConfig{
-		ListenAddr: "localhost:61614",
-		Id:         "go-stomp-server",
-		Name:       "",
-		Heartbeat:  30,
-		Status:     30,
-		StatusLog:  300,
-		IsDebug:    false,
+		ListenAddr:       "localhost:61614",
+		Id:               "go-stomp-server",
+		Name:             "",
+		Heartbeat:        30,
+		Status:           30,
+		StatusLog:        300,
+		MaxPendingReads:  300, //1 message per second * 5minutes
+		MaxPendingWrites: 300,
+		IsDebug:          false,
 	},
 }
 

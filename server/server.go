@@ -47,14 +47,16 @@ type Authenticator interface {
 }
 
 type ServerConfig struct {
-	Id         string
-	Name       string
-	Version    string
-	ListenAddr string // TCP address to listen on, DefaultAddr if empty
-	Heartbeat  int    //heart-beat interval in seconds
-	Status     int    //queue status interval in seconds
-	StatusLog  int    //log status interval in seconds
-	IsDebug    bool   //log debug data for connections
+	Id               string
+	Name             string
+	Version          string
+	ListenAddr       string // TCP address to listen on, DefaultAddr if empty
+	Heartbeat        int    //heart-beat interval in seconds
+	Status           int    //queue status interval in seconds
+	StatusLog        int    //log status interval in seconds
+	MaxPendingReads  int    //read channel buffer size
+	MaxPendingWrites int    //read channel size
+	IsDebug          bool   //log debug data for connections
 }
 
 // A Server defines parameters for running a STOMP server.

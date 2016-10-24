@@ -15,16 +15,6 @@ import (
 
 const pwdCurr string = "server/client/conn.go"
 
-// Maximum number of pending frames allowed to a client.
-// before a disconnect occurs. If the client cannot keep
-// up with the server, we do not want the server to backlog
-// pending frames indefinitely.
-const maxPendingWrites = 16
-
-// Maximum number of pending frames allowed before the read
-// go routine starts blocking.
-const maxPendingReads = 16
-
 // Represents a connection with the STOMP client.
 type Conn struct {
 	config               Config
@@ -64,9 +54,9 @@ func NewConn(config Config, rw net.Conn, ch chan Request, connId int64) *Conn {
 		config:         config,
 		rw:             rw,
 		requestChannel: ch,
-		subChannel:     make(chan *Subscription, maxPendingWrites),
-		writeChannel:   make(chan *frame.Frame, maxPendingWrites),
-		readChannel:    make(chan *frame.Frame, maxPendingReads),
+		subChannel:     make(chan *Subscription, config.MaxPendingWrites()),
+		writeChannel:   make(chan *frame.Frame, config.MaxPendingWrites()),
+		readChannel:    make(chan *frame.Frame, config.MaxPendingReads()),
 		txStore:        &txStore{},
 		subList:        NewSubscriptionList(),
 		subs:           make(map[string]*Subscription),

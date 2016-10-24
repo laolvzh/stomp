@@ -304,6 +304,20 @@ func (c *config) IsDebug() bool {
 	return c.server.Config.IsDebug
 }
 
+func (c *config) MaxPendingReads() int {
+	if c.server.Config.MaxPendingReads <= 0 {
+		return 16
+	}
+	return c.server.Config.MaxPendingReads
+}
+
+func (c *config) MaxPendingWrites() int {
+	if c.server.Config.MaxPendingWrites <= 0 {
+		return 16
+	}
+	return c.server.Config.MaxPendingWrites
+}
+
 func (c *config) Authenticate(login, passcode string) bool {
 	if c.server.Authenticator != nil {
 		return c.server.Authenticator.Authenticate(login, passcode)

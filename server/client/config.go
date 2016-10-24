@@ -20,4 +20,14 @@ type Config interface {
 
 	// show various debug information for connections
 	IsDebug() bool
+
+	// Maximum number of pending frames allowed before the read
+	// go routine starts blocking.
+	MaxPendingReads() int
+
+	// Maximum number of pending frames allowed to a client.
+	// before a disconnect occurs. If the client cannot keep
+	// up with the server, we do not want the server to backlog
+	// pending frames indefinitely.
+	MaxPendingWrites() int
 }
