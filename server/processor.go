@@ -23,6 +23,7 @@ import (
 
 type requestProcessor struct {
 	server                 *Server
+	config                 *config
 	ch                     chan client.Request
 	tm                     *topic.Manager
 	qm                     *queue.Manager
@@ -43,9 +44,11 @@ type requestProcessor struct {
 }
 
 func newRequestProcessor(server *Server) *requestProcessor {
+	config := newConfig(server)
 	proc := &requestProcessor{
 		server:      server,
-		ch:          make(chan client.Request, 128),
+		config:      config,
+		ch:          make(chan client.Request, config.MaxPendingWrites()*16), //HACK: arbitrary coeff
 		tm:          topic.NewManager(),
 		connections: make(map[int64]*client.Conn),
 	}
@@ -250,7 +253,7 @@ func isQueueDestination(dest string) bool {
 
 func (proc *requestProcessor) Listen(l net.Listener) {
 	var conn_id int64 = 0
-	config := newConfig(proc.server)
+
 	timeout := time.Duration(0) // how long to sleep on accept failure
 	for {
 		rw, err := l.Accept()
@@ -273,7 +276,7 @@ func (proc *requestProcessor) Listen(l net.Listener) {
 		timeout = 0
 		// TODO: need to pass Server to connection so it has access to
 		// configuration parameters.
-		client.NewConn(config, rw, proc.ch, conn_id)
+		client.NewConn(proc.config, rw, proc.ch, conn_id)
 		//conn := client.NewConn(config, rw, proc.ch, conn_id)
 		//notify about new connect
 		//proc.ch <- Request{Op: ConnectedOp, Conn: c}
