@@ -272,6 +272,52 @@ func readLoop(c *Conn, reader *frame.Reader) {
 	}
 }
 
+func watchdog(c *Conn, readSuccess chan bool, writeSuccess chan bool) {
+
+	var readTimeoutChannel <-chan time.Time
+	var readTimer *time.Timer
+	var writeTimeoutChannel <-chan time.Time
+	var writeTimer *time.Timer
+
+	for {
+		if c.readTimeout > 0 && readTimer == nil {
+			readTimer := time.NewTimer(c.readTimeout)
+			readTimeoutChannel = readTimer.C
+		}
+		if c.writeTimeout > 0 && writeTimer == nil {
+			writeTimer := time.NewTimer(c.writeTimeout * 2)
+			writeTimeoutChannel = writeTimer.C
+		}
+
+		select {
+		case _, open := <-readSuccess:
+			if readTimer != nil {
+				readTimer.Stop()
+				readTimer = nil
+				readTimeoutChannel = nil
+			}
+			if !open {
+				break
+			}
+		case _, open := <-writeSuccess:
+			if writeTimer != nil {
+				writeTimer.Stop()
+				writeTimer = nil
+				writeTimeoutChannel = nil
+			}
+			if !open {
+				break
+			}
+		case <-readTimeoutChannel:
+			c.MustDisconnect()
+			break
+		case <-writeTimeoutChannel:
+			c.MustDisconnect()
+			break
+		}
+	}
+}
+
 func writeHeartbeat(writer *frame.Writer, channels map[string]chan *frame.Frame) error {
 	//log.Debugf("sending heart-beat")
 	err := writer.Write(nil)
@@ -288,20 +334,24 @@ func writeHeartbeat(writer *frame.Writer, channels map[string]chan *frame.Frame)
 func processLoop(c *Conn, writer *frame.Writer) {
 	channels := make(map[string]chan *frame.Frame)
 
-	var readTimeoutChannel <-chan time.Time
-	var readTimer *time.Timer
+	//var readTimeoutChannel <-chan time.Time
+	//var readTimer *time.Timer
 	var writeTimeoutChannel <-chan time.Time
 	var writeTimer *time.Timer
+
+	readSuccess := make(chan bool)
+	writeSuccess := make(chan bool)
+	go watchdog(c, readSuccess, writeSuccess)
 
 	log.Debugf("processLoop %s %v %v", c.connInfo, c.readTimeout, c.writeTimeout)
 
 	for {
 		//log.Debugf("cycle start %s", c.connInfo)
-		if c.readTimeout > 0 && readTimer == nil {
+		/*if c.readTimeout > 0 && readTimer == nil {
 			//log.Debugf("readTimeout %s %v", c.connInfo, c.readTimeout)
 			readTimer = time.NewTimer(c.readTimeout)
 			readTimeoutChannel = readTimer.C
-		}
+		}*/
 		/*if readTimer != nil {
 			log.Debugf("cycle start %s readTimer: %v %v", c.connInfo, *readTimer)
 		}*/
@@ -317,12 +367,12 @@ func processLoop(c *Conn, writer *frame.Writer) {
 		}*/
 
 		select {
-		case <-readTimeoutChannel:
-			// read timeout, close the connection
-			log.Errorf("read timeout %s", c.connInfo)
-			err := newErrorMessage("read timeout")
-			sendError(channels, err)
-			return
+		/*case <-readTimeoutChannel:
+		// read timeout, close the connection
+		log.Errorf("read timeout %s", c.connInfo)
+		err := newErrorMessage("read timeout")
+		sendError(channels, err)
+		return*/
 
 		case <-writeTimeoutChannel:
 			// write timeout, send a heart-beat frame
@@ -331,11 +381,12 @@ func processLoop(c *Conn, writer *frame.Writer) {
 			if err != nil {
 				return
 			}
+			writeSuccess <- true
 			writeTimer = nil
 			writeTimeoutChannel = nil
 
 		case f, ok := <-c.readCh:
-
+			readSuccess <- true
 			if !ok {
 				log.Errorf("error read %s", c.connInfo)
 				err := newErrorMessage("connection closed")
@@ -369,11 +420,11 @@ func processLoop(c *Conn, writer *frame.Writer) {
 			//log.Debugf("readCh %s %v ", c.connInfo, f)
 
 			// stop the read timer
-			if readTimer != nil {
+			/*if readTimer != nil {
 				readTimer.Stop()
 				readTimer = nil
 				readTimeoutChannel = nil
-			}
+			}*/
 
 			if f == nil {
 				// heart-beat received
@@ -463,6 +514,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 				sendError(channels, err)
 				return
 			}
+			writeSuccess <- true
 		}
 	}
 }
