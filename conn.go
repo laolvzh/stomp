@@ -297,6 +297,7 @@ func watchdog(c *Conn, readSuccess chan bool, writeSuccess chan bool) {
 				readTimeoutChannel = nil
 			}
 			if !open {
+				log.Infof("watchdog: %s readSuccess closed, exiting", c.connInfo)
 				break
 			}
 		case _, open := <-writeSuccess:
@@ -306,12 +307,15 @@ func watchdog(c *Conn, readSuccess chan bool, writeSuccess chan bool) {
 				writeTimeoutChannel = nil
 			}
 			if !open {
+				log.Infof("watchdog: %s writeSuccess closed, exiting", c.connInfo)
 				break
 			}
 		case <-readTimeoutChannel:
+			log.Errorf("watchdog: %s readTimeout", c.connInfo)
 			c.MustDisconnect()
 			break
 		case <-writeTimeoutChannel:
+			log.Errorf("watchdog: %s writeTimeout", c.connInfo)
 			c.MustDisconnect()
 			break
 		}
@@ -379,6 +383,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 			//log.Debugf("writeTimeoutChannel 1 %s", c.connInfo)
 			err := writeHeartbeat(writer, channels)
 			if err != nil {
+				log.Warnf("processLoop: %s writeTimeoutChannel error write heart-beat: %s", c.connInfo, err)
 				return
 			}
 			writeSuccess <- true
@@ -388,7 +393,7 @@ func processLoop(c *Conn, writer *frame.Writer) {
 		case f, ok := <-c.readCh:
 			readSuccess <- true
 			if !ok {
-				log.Errorf("error read %s", c.connInfo)
+				log.Errorf("processLoop: %s read channel closed ", c.connInfo)
 				err := newErrorMessage("connection closed")
 				c.closed = true
 				sendError(channels, err)
@@ -402,13 +407,13 @@ func processLoop(c *Conn, writer *frame.Writer) {
 					if err == nil {
 						return
 					}
-					log.Errorf("Reconnect error %s", err.Error())
+					log.Errorf("processLoop: %s reconnect error %s", c.connInfo, err.Error())
 
 					if secToRecon < secReconLimit {
 						randomAdd := int(0.1*float64(secToRecon)) + 1
 						secToRecon = (secToRecon + rand.Intn(randomAdd)) * 2
 					}
-					log.Infof("Reconnecting: Retry: %d sleep for %d seconds", numOfRecon, secToRecon)
+					log.Infof("processLoop: %s reconnect retry:%d sleep for %d seconds", c.connInfo, numOfRecon, secToRecon)
 					time.Sleep(time.Second * time.Duration(secToRecon))
 					numOfRecon++
 
