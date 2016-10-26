@@ -36,6 +36,10 @@ type requestProcessor struct {
 	currentDisconnectCount int
 	currentEnqueueCount    int
 	currentRequeueCount    int
+
+	currentEnqueueCountLog int
+	currentQueueCountLog   int
+	currentSkippedCount    int
 }
 
 func newRequestProcessor(server *Server) *requestProcessor {
@@ -83,7 +87,7 @@ func (proc *requestProcessor) createStatus() *status.ServerStatus {
 
 	hostname, _ := os.Hostname()
 
-	rate := float64(proc.currentEnqueueCount+proc.currentRequeueCount) / proc.server.Status.Seconds()
+	rate := float64(proc.currentEnqueueCount+proc.currentRequeueCount) / float64(proc.server.Config.Status)
 
 	serverStatus := &status.ServerStatus{
 		Clients:                   clients,
@@ -115,6 +119,13 @@ func (proc *requestProcessor) createStatus() *status.ServerStatus {
 		MessageRate:               rate,
 	}
 
+	//diffs
+	proc.currentEnqueueCountLog += proc.currentEnqueueCount
+	proc.currentSkippedCount += totalCurrentSkippedWrites
+
+	//state
+	proc.currentQueueCountLog = totalQueueCount
+
 	proc.currentEnqueueCount = 0
 	proc.currentRequeueCount = 0
 	proc.currentConnectCount = 0
@@ -126,7 +137,6 @@ func (proc *requestProcessor) createStatus() *status.ServerStatus {
 func (proc *requestProcessor) createStatusFrame() *frame.Frame {
 	f := frame.New("MESSAGE", frame.ContentType, "application/json")
 	status := proc.createStatus()
-	log.Debugf("status %+v", status)
 	//bytes, err := json.MarshalIndent(status, "", "  ")
 	bytes, err := json.Marshal(status)
 	//log.Debugf("createStatusFrame %v", string(bytes))
@@ -149,10 +159,18 @@ func (proc *requestProcessor) sendStatusFrame() {
 func (proc *requestProcessor) Serve(l net.Listener) error {
 	go proc.Listen(l)
 
-	ticker := time.NewTicker(proc.server.Status)
+	ticker := time.NewTicker(proc.server.StatusDuration())
+	infoTicker := time.NewTicker(proc.server.StatusLogDuration())
 
 	for {
 		select {
+		case _ = <-infoTicker.C:
+
+			log.Debugf("status: processed:%d total:%d skipped:%d clients:%d",
+				proc.currentEnqueueCountLog, proc.currentQueueCountLog, proc.currentSkippedCount, len(proc.connections))
+			proc.currentEnqueueCountLog = 0
+			proc.currentQueueCountLog = 0
+			proc.currentSkippedCount = 0
 		case _ = <-ticker.C:
 			proc.sendStatusFrame()
 		case r := <-proc.ch:
@@ -275,10 +293,15 @@ func newConfig(s *Server) *config {
 }
 
 func (c *config) HeartBeat() time.Duration {
-	if c.server.HeartBeat == time.Duration(0) {
+	duration := c.server.HeartBeatDuration()
+	if duration == time.Duration(0) {
 		return DefaultHeartBeat
 	}
-	return c.server.HeartBeat
+	return duration
+}
+
+func (c *config) IsDebug() bool {
+	return c.server.Config.IsDebug
 }
 
 func (c *config) Authenticate(login, passcode string) bool {

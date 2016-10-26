@@ -36,28 +36,20 @@ var (
 
 var log = slf.WithContext("go-stompd-server.go")
 
-// GlobalConf is a struct with global options,
-// like server address and config auth filename
-type GlobalConf struct {
-	ListenAddr string
-	Id         string
-	Name       string
-	Heartbeat  int
-	Status     int
-}
-
 // ConfFile is a file with all program options
 type ConfFile struct {
-	Global GlobalConf
+	Global server.ServerConfig
 }
 
 var globalOpt = ConfFile{
-	Global: GlobalConf{
+	Global: server.ServerConfig{
 		ListenAddr: "localhost:61614",
 		Id:         "go-stomp-server",
 		Name:       "",
 		Heartbeat:  30,
 		Status:     30,
+		StatusLog:  300,
+		IsDebug:    false,
 	},
 }
 
@@ -69,12 +61,12 @@ func main() {
 	log.Infof("GitState=%s\n", GitState)
 	log.Infof("GitSummary=%s\n", GitSummary)
 	log.Infof("VERSION=%s\n", Version)
+	globalOpt.Global.Version = Version
 
 	conf.ReadGlobalConfig(&globalOpt, "GlobalConf")
 
 	a := auth.NewAuth()
-	s := server.NewServer(globalOpt.Global.Id, globalOpt.Global.Name, Version,
-		globalOpt.Global.ListenAddr, globalOpt.Global.Heartbeat, globalOpt.Global.Status, a)
+	s := server.NewServer(&globalOpt.Global, a)
 
 	log.Error("-----------------------------------------------")
 	err := s.ListenAndServe()

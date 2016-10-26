@@ -17,4 +17,7 @@ type Config interface {
 	// 11 days, but less than 12 days), then it is truncated to the
 	// maximum permitted values.
 	HeartBeat() time.Duration
+
+	// show various debug information for connections
+	IsDebug() bool
 }

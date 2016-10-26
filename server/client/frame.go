@@ -119,6 +119,6 @@ func getHeartBeat(f *frame.Frame) (cx, cy int, err error) {
 		cx = 0
 		cy = 0
 	}
-	log.Debugf("getHeartBeat: %s %d %d", f.Command, cx, cy)
+	//log.Debugf("getHeartBeat: %s %d %d", f.Command, cx, cy)
 	return
 }

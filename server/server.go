@@ -4,9 +4,10 @@ Package server contains a simple STOMP server implementation.
 package server
 
 import (
-	"github.com/ventu-io/slf"
 	"net"
 	"time"
+
+	"github.com/ventu-io/slf"
 )
 
 // The STOMP server has the concept of queues and topics. A message
@@ -45,38 +46,52 @@ type Authenticator interface {
 	Authenticate(login, passcode string) bool
 }
 
+type ServerConfig struct {
+	Id         string
+	Name       string
+	Version    string
+	ListenAddr string // TCP address to listen on, DefaultAddr if empty
+	Heartbeat  int    //heart-beat interval in seconds
+	Status     int    //queue status interval in seconds
+	StatusLog  int    //log status interval in seconds
+	IsDebug    bool   //log debug data for connections
+}
+
 // A Server defines parameters for running a STOMP server.
 type Server struct {
-	id            string
-	name          string
-	version       string
-	Addr          string        // TCP address to listen on, DefaultAddr if empty
 	Authenticator Authenticator // Authenticates login/passcodes. If nil no authentication is performed
 	QueueStorage  QueueStorage  // Implementation of queue storage. If nil, in-memory queues are used.
-	HeartBeat     time.Duration // Preferred value for heart-beat read/write timeout, if zero, then DefaultHeartBeat.
-	Status        time.Duration // Send status message timer interval
+	Config        *ServerConfig
 }
 
 func (s *Server) Id() string {
-	return s.id
+	return s.Config.Id
 }
 
 func (s *Server) Name() string {
-	return s.name
+	return s.Config.Name
 }
 
 func (s *Server) Version() string {
-	return s.version
+	return s.Config.Version
 }
 
-func NewServer(id string, name string, version string, addr string, heartBeat int, status int, a Authenticator) *Server {
+func (s *Server) StatusDuration() time.Duration {
+	return time.Duration(s.Config.Status) * time.Second
+}
+
+func (s *Server) StatusLogDuration() time.Duration {
+	return time.Duration(s.Config.StatusLog) * time.Second
+}
+
+func (s *Server) HeartBeatDuration() time.Duration {
+	return time.Duration(s.Config.Heartbeat) * time.Second
+}
+
+func NewServer(config *ServerConfig, a Authenticator) *Server {
+	log.Infof("NewServer: %+v", config)
 	return &Server{
-		id:            id,
-		name:          name,
-		version:       version,
-		Addr:          addr,
-		HeartBeat:     time.Second * time.Duration(heartBeat),
-		Status:        time.Second * time.Duration(status),
+		Config:        config,
 		Authenticator: a,
 	}
 }
@@ -102,7 +117,7 @@ func Serve(l net.Listener, a Authenticator) error {
 // then calls Serve to handle requests on the incoming connections.
 // If s.Addr is blank, then DefaultAddr is used.
 func (s *Server) ListenAndServe() error {
-	addr := s.Addr
+	addr := s.Config.ListenAddr
 	if addr == "" {
 		addr = DefaultAddr
 	}

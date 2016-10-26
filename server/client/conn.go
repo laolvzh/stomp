@@ -2,14 +2,15 @@ package client
 
 import (
 	"fmt"
-	"github.com/go-stomp/stomp"
-	"github.com/go-stomp/stomp/frame"
-	"github.com/go-stomp/stomp/server/status"
-	"github.com/ventu-io/slf"
 	"io"
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/go-stomp/stomp"
+	"github.com/go-stomp/stomp/frame"
+	"github.com/go-stomp/stomp/server/status"
+	"github.com/ventu-io/slf"
 )
 
 const pwdCurr string = "server/client/conn.go"
@@ -50,6 +51,7 @@ type Conn struct {
 	log                  slf.StructuredLogger
 	skippedWrites        int64
 	currentSkippedWrites int
+	isDebug              bool
 }
 
 // Creates a new client connection. The config parameter contains
@@ -71,6 +73,7 @@ func NewConn(config Config, rw net.Conn, ch chan Request, connId int64) *Conn {
 		id:             connId,
 		time:           time.Now(),
 		log:            slf.WithContext(pwdCurr).WithFields(slf.Fields{"addr": rw.RemoteAddr(), "id": connId}),
+		isDebug:        config.IsDebug(),
 	}
 	go c.readLoop()
 	go c.processLoop()
@@ -116,7 +119,9 @@ func (c *Conn) Send(f *frame.Frame, comment string) {
 		c.skippedWrites++
 		c.currentSkippedWrites++
 		c.log.Warnf("Send: too many write requests for %s", comment)
-		c.log.Debugf("Send: drop %v", f)
+		if c.isDebug {
+			c.log.Debugf("Send: drop %v", f)
+		}
 		return
 	}
 	c.writeChannel <- f
@@ -155,7 +160,15 @@ func (c *Conn) sendErrorImmediately(err error, f *frame.Frame) {
 // Sends a STOMP frame to the client immediately, does not push onto the
 // write channel to be processed in turn.
 func (c *Conn) sendImmediately(f *frame.Frame) error {
-	return c.writer.Write(f)
+	return c.writeFrame(f)
+}
+
+func (c *Conn) writeFrame(f *frame.Frame) error {
+	err := c.writer.Write(f)
+	if err != nil {
+		c.log.Errorf("writeFrame: error write %s", err.Error())
+	}
+	return err
 }
 
 // Go routine for reading bytes from a client and assembling into
@@ -196,7 +209,9 @@ func (c *Conn) readLoop() {
 
 		if f == nil {
 			// if the frame is nil, then it is a heartbeat
-			c.log.Debug("heart-beat received")
+			if c.isDebug {
+				c.log.Debug("heart-beat received")
+			}
 			continue
 		}
 
@@ -208,7 +223,7 @@ func (c *Conn) readLoop() {
 		// some extent, but letting this go-routine work out its own
 		// read timeout means no synchronization is necessary.
 		if expectingConnect {
-			c.log.Debug("connect frame?")
+			//c.log.Debug("connect frame?")
 			// Expecting a CONNECT or STOMP command, get the heart-beat
 			cx, _, err := getHeartBeat(f)
 
@@ -287,7 +302,7 @@ func (c *Conn) processLoop() {
 			c.allocateMessageId(f, nil)
 
 			// write the frame to the client
-			err := c.writer.Write(f)
+			err := c.writeFrame(f)
 			if err != nil {
 				c.log.Errorf("processLoop writeChannel: write error %v", err)
 				// if there is an error writing to
@@ -360,7 +375,7 @@ func (c *Conn) processLoop() {
 				c.allocateMessageId(sub.frame, sub)
 
 				// write the frame to the client
-				err := c.writer.Write(sub.frame)
+				err := c.writeFrame(sub.frame)
 				if err != nil {
 					// if there is an error writing to
 					// the client, there is not much
@@ -389,8 +404,10 @@ func (c *Conn) processLoop() {
 			timer.Stop()
 			timer = nil
 			timerChannel = nil
-			c.log.Debug("write heart-beat")
-			err := c.writer.Write(nil)
+			if c.isDebug {
+				c.log.Debug("write heart-beat")
+			}
+			err := c.writeFrame(nil)
 			if err != nil {
 				return
 			}
@@ -583,6 +600,10 @@ func (c *Conn) handleConnect(f *frame.Frame) error {
 	if err != nil {
 		c.log.Errorf("invalid heart-beat, %v", f.Dump())
 		return err
+	}
+
+	if c.isDebug {
+		log.Debugf("getHeartBeat: %s %d %d", f.Command, cx, cy)
 	}
 
 	// Minimum value as per server config. If the client
