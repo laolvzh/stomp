@@ -94,7 +94,7 @@ func (c *Conn) GetStatus() *status.ServerClientStatus {
 		Login:                 c.login,
 		Peer:                  c.peer,
 		PeerName:              c.peer_name,
-		Time:                  c.time.Format("2006-01-02T15:04:05"),
+		Time:                  c.time.Format(time.RFC3339),
 		Subscriptions:         subscriptions,
 		SkippedWrites:         c.skippedWrites,
 		CurrentSkippedWrites:  c.currentSkippedWrites,
