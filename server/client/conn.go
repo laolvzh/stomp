@@ -17,31 +17,35 @@ const pwdCurr string = "server/client/conn.go"
 
 // Represents a connection with the STOMP client.
 type Conn struct {
-	config               Config
-	rw                   net.Conn                            // Network connection to client
-	writer               *frame.Writer                       // Writes STOMP frames directly to the network connection
-	requestChannel       chan Request                        // For sending requests to upper layer
-	subChannel           chan *Subscription                  // Receives subscription messages for client
-	writeChannel         chan *frame.Frame                   // Receives unacknowledged (topic) messages for client
-	readChannel          chan *frame.Frame                   // Receives frames from the client
-	stateFunc            func(c *Conn, f *frame.Frame) error // State processing function
-	writeTimeout         time.Duration                       // Heart beat write timeout
-	version              stomp.Version                       // Negotiated STOMP protocol version
-	id                   int64
-	login                string
-	peer                 string
-	peer_name            string
-	time                 time.Time
-	closed               bool                     // Is the connection closed
-	txStore              *txStore                 // Stores transactions in progress
-	lastMsgId            uint64                   // last message-id value
-	subList              *SubscriptionList        // List of subscriptions requiring acknowledgement
-	subs                 map[string]*Subscription // All subscriptions, keyed by id
-	validator            stomp.Validator          // For validating STOMP frames
-	log                  slf.StructuredLogger
-	skippedWrites        int64
-	currentSkippedWrites int
-	isDebug              bool
+	config                Config
+	rw                    net.Conn                            // Network connection to client
+	writer                *frame.Writer                       // Writes STOMP frames directly to the network connection
+	requestChannel        chan Request                        // For sending requests to upper layer
+	subChannel            chan *Subscription                  // Receives subscription messages for client
+	writeChannel          chan *frame.Frame                   // Receives unacknowledged (topic) messages for client
+	readChannel           chan *frame.Frame                   // Receives frames from the client
+	stateFunc             func(c *Conn, f *frame.Frame) error // State processing function
+	writeTimeout          time.Duration                       // Heart beat write timeout
+	version               stomp.Version                       // Negotiated STOMP protocol version
+	id                    int64
+	login                 string
+	peer                  string
+	peer_name             string
+	time                  time.Time
+	closed                bool                     // Is the connection closed
+	txStore               *txStore                 // Stores transactions in progress
+	lastMsgId             uint64                   // last message-id value
+	subList               *SubscriptionList        // List of subscriptions requiring acknowledgement
+	subs                  map[string]*Subscription // All subscriptions, keyed by id
+	validator             stomp.Validator          // For validating STOMP frames
+	log                   slf.StructuredLogger
+	skippedWrites         int64
+	currentSkippedWrites  int
+	sentFrames            int64
+	currentSentFrames     int
+	receivedFrames        int64
+	currentReceivedFrames int
+	isDebug               bool
 }
 
 // Creates a new client connection. The config parameter contains
@@ -85,15 +89,19 @@ func (c *Conn) GetStatus() *status.ServerClientStatus {
 		})
 	}
 	connStatus := &status.ServerClientStatus{
-		ID:                   c.id,
-		Address:              c.rw.RemoteAddr().String(),
-		Login:                c.login,
-		Peer:                 c.peer,
-		PeerName:             c.peer_name,
-		Time:                 c.time.Format("2006-01-02T15:04:05"),
-		Subscriptions:        subscriptions,
-		SkippedWrites:        c.skippedWrites,
-		CurrentSkippedWrites: c.currentSkippedWrites,
+		ID:                    c.id,
+		Address:               c.rw.RemoteAddr().String(),
+		Login:                 c.login,
+		Peer:                  c.peer,
+		PeerName:              c.peer_name,
+		Time:                  c.time.Format("2006-01-02T15:04:05"),
+		Subscriptions:         subscriptions,
+		SkippedWrites:         c.skippedWrites,
+		CurrentSkippedWrites:  c.currentSkippedWrites,
+		SentFrames:            c.sentFrames,
+		CurrentSentFrames:     c.currentSentFrames,
+		ReceivedFrames:        c.receivedFrames,
+		CurrentReceivedFrames: c.currentReceivedFrames,
 	}
 	c.currentSkippedWrites = 0
 
@@ -157,6 +165,9 @@ func (c *Conn) writeFrame(f *frame.Frame) error {
 	err := c.writer.Write(f)
 	if err != nil {
 		c.log.Errorf("writeFrame: error write %s", err.Error())
+	} else {
+		c.sentFrames++
+		c.currentSentFrames++
 	}
 	return err
 }
@@ -196,6 +207,8 @@ func (c *Conn) readLoop() {
 			close(c.readChannel)
 			return
 		}
+		c.receivedFrames++
+		c.currentReceivedFrames++
 
 		if f == nil {
 			// if the frame is nil, then it is a heartbeat
