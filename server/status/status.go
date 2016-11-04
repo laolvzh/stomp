@@ -6,15 +6,19 @@ type ServerClientSubscriptionStatus struct {
 }
 
 type ServerClientStatus struct {
-	ID                   int64
-	Address              string
-	Login                string
-	Peer                 string
-	PeerName             string
-	Time                 string
-	SkippedWrites        int64
-	CurrentSkippedWrites int
-	Subscriptions        []ServerClientSubscriptionStatus
+	ID                    int64
+	Address               string
+	Login                 string
+	Peer                  string
+	PeerName              string
+	Time                  string
+	SkippedWrites         int64
+	CurrentSkippedWrites  int
+	SentFrames            int64
+	CurrentSentFrames     int
+	ReceivedFrames        int64
+	CurrentReceivedFrames int
+	Subscriptions         []ServerClientSubscriptionStatus
 }
 
 type QueueStatus struct {
