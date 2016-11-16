@@ -3,6 +3,94 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "fkSvdoyDQXDjS/e4uNYQlvXfIgo=",
+			"path": "github.com/KristinaEtc/stomp",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "qYJT8buJaKRoTBYYHS39CDYVtqI=",
+			"path": "github.com/KristinaEtc/stomp/examples/client_test",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "CVafRpj+kH+jjVYajZ5BWbvwCZo=",
+			"path": "github.com/KristinaEtc/stomp/frame",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "9z5HXAr4GMvCUZJ+phe7g45v6BI=",
+			"path": "github.com/KristinaEtc/stomp/server",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "F1OxqV5tcejPjKgCNapTyC+Xc7M=",
+			"path": "github.com/KristinaEtc/stomp/server/auth",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "YSuHWh+gyRszYrFae0t8kVPHHg8=",
+			"path": "github.com/KristinaEtc/stomp/server/client",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "A2lnq1AWV2oevRSX8dADFLFXuWc=",
+			"path": "github.com/KristinaEtc/stomp/server/queue",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "fEyBlHZTyG+EcXbTLyS3djHw5Q8=",
+			"path": "github.com/KristinaEtc/stomp/server/status",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "AMcJut+LtaFlvvETr1NKiBwbwIo=",
+			"path": "github.com/KristinaEtc/stomp/server/topic",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "TL41hInL4DEHK+6oRsh29fw9MFc=",
+			"path": "github.com/KristinaEtc/stomp/stompd",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "wJsq9U4N3HhwurvlbalcHXSGWt0=",
+			"path": "github.com/KristinaEtc/stomp/testutil",
+			"revision": "bb23065006d02a6cae312b05f6fec09daa386aee",
+			"revisionTime": "2016-11-16T10:12:40Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
 			"checksumSHA1": "yqkvlGdBpJ4lYTgQbDI39vWiKsE=",
 			"origin": "github.com/KristinaEtc/stomp/^",
 			"path": "github.com/go-stomp/stomp",
