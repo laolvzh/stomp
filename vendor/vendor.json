@@ -1,12 +1,56 @@
 {
 	"comment": "",
-	"ignore": "",
+	"ignore": "test",
 	"package": [
 		{
-			"origin": "github.com/KristinaEtc/stomp/^:dev",
+			"checksumSHA1": "csETv6A+vWaoMHKZKSBYkzvtyzk=",
+			"path": "github.com/KristinaEtc/config",
+			"revision": "8ed85620171d70ac3b86a2d3a427dd8f06a4a139",
+			"revisionTime": "2016-10-07T10:41:38Z"
+		},
+		{
+			"checksumSHA1": "zZlbRwJnCrMQJRCtGV7OtdR2gAg=",
+			"path": "github.com/KristinaEtc/slflog",
+			"revision": "3f6cdc939fa650955b43e604fe384fa02ad895b5",
+			"revisionTime": "2016-10-25T09:54:54Z"
+		},
+		{
+			"checksumSHA1": "o0JrfFYUm9wDuxFQPQGVNMHhQrE=",
+			"origin": "github.com/KristinaEtc/stomp",
 			"path": "github.com/go-stomp/stomp",
-			"revision": "",
+			"revision": "154e039f53522965f675e622dedacf4d58720528",
+			"revisionTime": "2016-10-14T21:47:12Z",
 			"tree": true
+		},
+		{
+			"checksumSHA1": "g+afVQQVopBLiLB5pFZp/8s6aBs=",
+			"path": "github.com/kardianos/osext",
+			"revision": "c2c54e542fb797ad986b31721e1baedf214ca413",
+			"revisionTime": "2016-08-11T00:15:26Z"
+		},
+		{
+			"checksumSHA1": "zmC8/3V4ls53DJlNTKDZwPSC/dA=",
+			"path": "github.com/satori/go.uuid",
+			"revision": "b061729afc07e77a8aa4fad0a2fd840958f1942a",
+			"revisionTime": "2016-09-27T10:08:44Z"
+		},
+		{
+			"checksumSHA1": "6wNdwwFgO/a7Dm0Ywj7NxK/p9dU=",
+			"path": "github.com/ventu-io/slf",
+			"revision": "43c1a8878c1f98a1a88268c6805080b3c6be945b",
+			"revisionTime": "2016-04-29T23:35:11Z"
+		},
+		{
+			"checksumSHA1": "CL/xrk+ViG1KixIKIuDiRUUSMZM=",
+			"path": "github.com/ventu-io/slog",
+			"revision": "82f9bc9959769f12189886094adc6b986bba085a",
+			"revisionTime": "2016-05-01T20:56:29Z"
+		},
+		{
+			"checksumSHA1": "I2d7Kn572Fz02mnnlcI4MHXCu0c=",
+			"path": "gopkg.in/check.v1",
+			"revision": "4f90aeace3a26ad7021961c297b22c42160c7b25",
+			"revisionTime": "2016-01-05T16:49:36Z"
 		}
 	],
 	"rootPath": "github.com/KristinaEtc/stomp"
