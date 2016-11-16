@@ -15,11 +15,11 @@
 			"revisionTime": "2016-10-25T09:54:54Z"
 		},
 		{
-			"checksumSHA1": "o0JrfFYUm9wDuxFQPQGVNMHhQrE=",
+			"checksumSHA1": "96jemxjdsNsL4baNpW2spzd2nto=",
 			"origin": "github.com/KristinaEtc/stomp",
 			"path": "github.com/go-stomp/stomp",
-			"revision": "154e039f53522965f675e622dedacf4d58720528",
-			"revisionTime": "2016-10-14T21:47:12Z",
+			"revision": "a18eb483d18dfd67bb4cfbb1f4c7e9558075d036",
+			"revisionTime": "2016-11-04T12:16:17Z",
 			"tree": true
 		},
 		{
