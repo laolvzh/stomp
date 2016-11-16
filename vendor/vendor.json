@@ -1,0 +1,71 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "yqkvlGdBpJ4lYTgQbDI39vWiKsE=",
+			"origin": "github.com/KristinaEtc/stomp/^",
+			"path": "github.com/go-stomp/stomp",
+			"revision": "1c7d284575f830f26e3dab2abaa9ce8aaff08058",
+			"revisionTime": "2016-11-04T18:48:06Z",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "LsLv9esDVK47nkoMEbDJ/jPH4C0=",
+			"path": "github.com/go-stomp/stomp/frame",
+			"revision": "1c7d284575f830f26e3dab2abaa9ce8aaff08058",
+			"revisionTime": "2016-11-04T18:48:06Z",
+			"version": "dev"
+		},
+		{
+			"checksumSHA1": "eInR57bExEPKtL0SCJ6QrycmgWA=",
+			"path": "github.com/go-stomp/stomp/server",
+			"revision": "1c7d284575f830f26e3dab2abaa9ce8aaff08058",
+			"revisionTime": "2016-11-04T18:48:06Z",
+			"version": "dev"
+		},
+		{
+			"origin": "github.com/KristinaEtc/stomp/auth",
+			"path": "github.com/go-stomp/stomp/server/auth",
+			"revision": "dev",
+			"version": "dev",
+			"versionExact": "dev"
+		},
+		{
+			"checksumSHA1": "PSX2bmtk46UU5zvPMTrIsPghoC0=",
+			"path": "github.com/go-stomp/stomp/server/client",
+			"revision": "1c7d284575f830f26e3dab2abaa9ce8aaff08058",
+			"revisionTime": "2016-11-04T18:48:06Z",
+			"version": "dev"
+		},
+		{
+			"checksumSHA1": "tOFA14KF9DXsbyMO4hraN/FJa8s=",
+			"path": "github.com/go-stomp/stomp/server/queue",
+			"revision": "1c7d284575f830f26e3dab2abaa9ce8aaff08058",
+			"revisionTime": "2016-11-04T18:48:06Z",
+			"version": "dev"
+		},
+		{
+			"origin": "github.com/KristinaEtc/stomp/.../server/status",
+			"path": "github.com/go-stomp/stomp/server/status",
+			"revision": "dev",
+			"version": "dev"
+		},
+		{
+			"checksumSHA1": "e+B3L/gvDQOrUqPXJKQyqLt7d7U=",
+			"path": "github.com/go-stomp/stomp/server/topic",
+			"revision": "1c7d284575f830f26e3dab2abaa9ce8aaff08058",
+			"revisionTime": "2016-11-04T18:48:06Z",
+			"version": "dev"
+		},
+		{
+			"checksumSHA1": "ySdXbHh/vRSaafiok0EpGLbn9X8=",
+			"path": "github.com/go-stomp/stomp/testutil",
+			"revision": "1c7d284575f830f26e3dab2abaa9ce8aaff08058",
+			"revisionTime": "2016-11-04T18:48:06Z",
+			"version": "dev"
+		}
+	],
+	"rootPath": "github.com/KristinaEtc/stomp"
+}
