@@ -4,11 +4,18 @@ build:
     - GOOS=linux
     - GOARCH=amd64
     - CGO_ENABLED=0
-
-
-build:
-  image: golang
   commands:
     - go get github.com/kardianos/govendor
     - govendor sync
+    - cd stompd
     - go build
+
+notify:
+        downstream:
+                repositories:
+                        - KristinaEtc/go-nominatim@dev
+                when:
+                        event: push
+                        token: $$TOKEN
+                        branch: master,dev,release
+                        success: true
