@@ -10,10 +10,9 @@ build:
     - cd stompd
     - go build
 
-notify:
-        downstream:
-                repositories:
-                        - KristinaEtc/go-nominatim@dev
+downstream:
+        repositories:
+                - KristinaEtc/go-nominatim@dev
                 when:
                         event: push
                         token: $$TOKEN
