@@ -17,5 +17,5 @@ notify:
                 when:
                         event: push
                         token: $$TOKEN
-                        branch: master,dev,release
+                        branch: master,dev,release,drone
                         success: true
