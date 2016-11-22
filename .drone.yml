@@ -9,3 +9,12 @@ build:
     - govendor sync
     - cd stompd
     - go build
+notify:
+        downstream:
+                repositores:
+                        - KristinaEtc/go-nominatim
+                token: $$TOKEN
+                when:
+                        event: push
+                        branch: dev
+                        success: true
