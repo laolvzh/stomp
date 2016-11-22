@@ -16,4 +16,5 @@ downstream:
                 when:
                         event: push
                         token: $$TOKEN
+                        branches: drone,master,dev,release
                         success: true
